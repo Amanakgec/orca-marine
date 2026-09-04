@@ -154,17 +154,24 @@ if not os.path.exists(FRONTEND_DIST):
     if os.path.exists(alt_dist):
         FRONTEND_DIST = alt_dist
 
+@app.get("/")
+async def serve_root():
+    if os.path.exists(FRONTEND_DIST):
+        index_path = os.path.join(FRONTEND_DIST, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+    return {
+        "status": "online",
+        "service": "ORCA Marine Intelligence API",
+        "health": "/api/health",
+        "docs": "/docs",
+        "message": "Backend is running! Point your Vercel frontend VITE_API_URL to this domain."
+    }
+
 if os.path.exists(FRONTEND_DIST):
     assets_dir = os.path.join(FRONTEND_DIST, "assets")
     if os.path.exists(assets_dir):
         app.mount("/assets", StaticFiles(directory=assets_dir), name="static-assets")
-
-    @app.get("/")
-    async def serve_root():
-        index_path = os.path.join(FRONTEND_DIST, "index.html")
-        if os.path.exists(index_path):
-            return FileResponse(index_path)
-        return {"status": "ORCA Marine Intelligence API running"}
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
