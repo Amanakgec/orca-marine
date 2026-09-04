@@ -1,3 +1,4 @@
+import random
 from models import ChatRequest, ChatResponse, AgentStep, GeoJSONLayer, LayerStyle
 from agents.tools import discover_ocean_data, assess_safety_risk, find_potential_fishing_zones, compute_safe_route
 
@@ -19,137 +20,245 @@ def _to_geojson_layers(raw_layers: list) -> list[GeoJSONLayer]:
         ))
     return result
 
+COASTAL_LOCATIONS = {
+    # Gujarat & Gulf of Kutch / Khambhat
+    'porbandar': (21.64, 69.60),
+    'veraval': (20.90, 70.36),
+    'kandla': (23.00, 70.21),
+    'surat': (21.17, 72.83),
+    'diu': (20.71, 70.98),
+    'daman': (20.39, 72.83),
+
+    # Maharashtra & Konkan Coast
+    'mumbai': (18.92, 72.82),
+    'bombay': (18.92, 72.82),
+    'ratnagiri': (16.99, 73.28),
+    'alibaug': (18.64, 72.87),
+
+    # Goa
+    'goa': (15.29, 73.91),
+    'panaji': (15.49, 73.82),
+    'mormugao': (15.40, 73.80),
+
+    # Karnataka
+    'karwar': (14.80, 74.12),
+    'mangalore': (12.91, 74.85),
+    'mangaluru': (12.91, 74.85),
+    'udupi': (13.34, 74.74),
+    'malpe': (13.35, 74.70),
+
+    # Kerala & Malabar Coast
+    'kochi': (9.93, 76.26),
+    'cochin': (9.93, 76.26),
+    'kozhikode': (11.25, 75.78),
+    'calicut': (11.25, 75.78),
+    'kollam': (8.89, 76.61),
+    'alappuzha': (9.49, 76.33),
+    'alleppey': (9.49, 76.33),
+    'thiruvananthapuram': (8.52, 76.93),
+    'trivandrum': (8.52, 76.93),
+
+    # Tamil Nadu & Coromandel Coast / Gulf of Mannar
+    'kanyakumari': (8.08, 77.55),
+    'cape comorin': (8.08, 77.55),
+    'tuticorin': (8.76, 78.13),
+    'thoothukudi': (8.76, 78.13),
+    'rameswaram': (9.29, 79.31),
+    'nagapattinam': (10.77, 79.84),
+    'cuddalore': (11.75, 79.77),
+    'chennai': (13.08, 80.27),
+    'madras': (13.08, 80.27),
+    'puducherry': (11.94, 79.80),
+    'pondicherry': (11.94, 79.80),
+
+    # Andhra Pradesh
+    'machilipatnam': (16.18, 81.13),
+    'kakinada': (16.98, 82.24),
+    'vizag': (17.68, 83.21),
+    'visakhapatnam': (17.68, 83.21),
+    'nellore': (14.44, 79.98),
+
+    # Odisha
+    'puri': (19.81, 85.83),
+    'paradip': (20.31, 86.61),
+    'chandipur': (21.47, 87.01),
+    'gopalpur': (19.26, 84.90),
+
+    # West Bengal & Sundarbans
+    'kolkata': (22.57, 88.36),
+    'calcutta': (22.57, 88.36),
+    'digha': (21.62, 87.50),
+    'haldia': (22.06, 88.06),
+    'sundarbans': (21.80, 88.80),
+
+    # Islands
+    'port blair': (11.62, 92.72),
+    'andaman': (11.62, 92.72),
+    'kavaratti': (10.56, 72.64),
+    'lakshadweep': (10.56, 72.64)
+}
+
 async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
     msg = request.message.lower()
 
-    # EXPANDED LOCATION PARSING (All Coastal Regions)
-    loc_map = {
-        'mumbai': (18.92, 72.82),
-        'goa': (15.29, 73.91),
-        'mangalore': (12.91, 74.85),
-        'kochi': (9.93, 76.26),
-        'kanyakumari': (8.08, 77.55),
-        'tuticorin': (8.76, 78.13),
-        'rameswaram': (9.29, 79.31),
-        'nagapattinam': (10.77, 79.84),
-        'chennai': (13.08, 80.27),
-        'vizag': (17.68, 83.21),
-        'puri': (19.81, 85.83),
-        'kolkata': (22.57, 88.36)
-    }
+    # Default center if no location identified
+    lat, lon = 18.92, 72.82 # Default Mumbai
+    detected_loc = "Indian Coastal Waters"
 
-    lat, lon = loc_map['mumbai'] # Default to Mumbai
-    detected_loc = "your location"
-
-    # Check explicit location field first
-    if request.location and request.location.lower() not in ('auto', ''):
+    # Match explicit location field first
+    if request.location and request.location.lower() not in ('auto', 'default', ''):
         req_loc = request.location.lower()
-        for key, coords in loc_map.items():
+        for key, coords in COASTAL_LOCATIONS.items():
             if key in req_loc:
                 lat, lon = coords
-                detected_loc = key.capitalize()
+                detected_loc = key.title()
                 break
 
-    # Then check the message text
-    for key, coords in loc_map.items():
+    # Next check message text for known coastal cities or harbors
+    for key, coords in COASTAL_LOCATIONS.items():
         if key in msg:
             lat, lon = coords
-            detected_loc = key.capitalize()
+            detected_loc = key.title()
             break
+
+    basin = "Arabian Sea" if lon < 77.5 else "Bay of Bengal"
 
     layers_raw: list[dict] = []
     steps: list[AgentStep] = []
     text_response = ""
 
-    # PERSONALIZED GREETINGS
-    import random
-    greetings = [
-        f"Ahoy Captain! Checking the waters around {detected_loc}.",
-        f"Greetings! I've analyzed the latest maritime data for {detected_loc}.",
-        f"Hello there. Here is your personalized marine report for {detected_loc}.",
+    # Personalized Captain greetings
+    personal_greetings = [
+        f"Ahoy Captain! Reporting live marine intelligence for **{detected_loc}** ({basin}).",
+        f"Namaste! ORCA agent swarm has synthesized maritime conditions off the **{detected_loc}** coastline.",
+        f"Greetings Sailor! Here is your personalized ocean and fishing advisory for **{detected_loc}**."
     ]
-    greet = random.choice(greetings)
+    greeting = random.choice(personal_greetings)
 
-    # INTENT DETECTION
-    if any(w in msg for w in ['weather', 'wave', 'wind', 'storm', 'cyclone']):
-        res1 = discover_ocean_data.invoke({"lat": lat, "lon": lon, "radius_km": 100})
-        res2 = assess_safety_risk.invoke({"lat": lat, "lon": lon})
+    # Intent 1: Fishing Zones & Catch advisory
+    if any(w in msg for w in ['fish', 'pfz', 'catch', 'tuna', 'sardine', 'mackerel', 'zone', 'fishing']):
+        lat_min, lon_min, lat_max, lon_max = lat - 1.2, lon - 1.2, lat + 1.2, lon + 1.2
+        res = find_potential_fishing_zones.invoke({
+            "lat_min": lat_min, "lon_min": lon_min, "lat_max": lat_max, "lon_max": lon_max
+        })
+        layers_raw.extend(res.get("geojson_layers", []))
 
-        layers_raw.extend(res1.get("geojson_layers", []))
-        layers_raw.extend(res2.get("geojson_layers", []))
+        steps.append(AgentStep(
+            agent_name="Data Agent",
+            action="satellite_chlorophyll_sst_ingest",
+            result_summary=f"Ingested MODIS/Oceansat-3 SST & Chlorophyll-a layers for {detected_loc} shelf"
+        ))
+        steps.append(AgentStep(
+            agent_name="PFZ Reasoning Agent",
+            action="thermal_front_correlation",
+            result_summary=f"Correlated 26.5-28.5°C thermal fronts with chlorophyll blooms. Isolated {res.get('total_zones', 0)} high-yield zones"
+        ))
 
-        steps.append(AgentStep(agent_name="Data Agent", action="discover_ocean_data", result_summary=f"Retrieved SST ({res1['sst_summary']['min']}–{res1['sst_summary']['max']}°C), chlorophyll, and weather data"))
-        steps.append(AgentStep(agent_name="Safety Agent", action="assess_safety_risk", result_summary=f"Risk level: {res2['risk_level']} — IMBL distance: {res2['imbl_distance_nm']} NM"))
+        top_zone = res["zones"][0] if res.get("zones") else None
+        if top_zone:
+            text_response = (
+                f"{greeting}\n\n"
+                f"🎣 **Potential Fishing Zones Identified**: Found **{res.get('total_zones', 0)} active PFZ polygons** in your target sector.\n"
+                f"• **Primary Hotspot**: {top_zone.get('location')} ({top_zone.get('confidence', 0.85)*100:.0f}% confidence score)\n"
+                f"• **Target Pelagic Species**: {top_zone.get('species')}\n"
+                f"• **Water Characteristics**: SST {top_zone.get('sst_range')} | Chlorophyll {top_zone.get('chlorophyll')}\n"
+                f"• **Depth**: {top_zone.get('depth')}\n\n"
+                f"💡 *Recommendation*: Green overlays on the map delineate the recommended harvest perimeters."
+            )
+        else:
+            text_response = f"{greeting}\n\nIdentified productive fishing grounds within your coordinates. Check the green polygons on your chart."
+
+    # Intent 2: Route planning & Navigational Corridor
+    elif any(w in msg for w in ['route', 'navigate', 'path', 'journey', 'travel', 'waypoint', 'sail']):
+        # Find destination
+        dest_lat, dest_lon = lat - 2.0, lon - 0.5
+        dest_name = "Offshore Fishing Ground"
+        for key, coords in COASTAL_LOCATIONS.items():
+            if key in msg and key != detected_loc.lower():
+                dest_lat, dest_lon = coords
+                dest_name = key.title()
+                break
+
+        res = compute_safe_route.invoke({
+            "start_lat": lat, "start_lon": lon, "end_lat": dest_lat, "end_lon": dest_lon
+        })
+        layers_raw.extend(res.get("geojson_layers", []))
+
+        steps.append(AgentStep(
+            agent_name="Safety Agent",
+            action="scan_hazard_polygons",
+            result_summary=f"Cross-checked transit corridor against high waves, shallow banks, and IMBL boundaries"
+        ))
+        steps.append(AgentStep(
+            agent_name="Routing Agent",
+            action="compute_safe_transit_lane",
+            result_summary=f"Computed safe maritime passage ({res['distance_nm']} NM, {res['estimated_time_hours']} hrs @ 10.5 kts)"
+        ))
 
         text_response = (
-            f"{greet} The sea surface temperature ranges from "
-            f"{res1['sst_summary']['min']}°C to {res1['sst_summary']['max']}°C. "
-            f"{res2['warnings'][0]}. Risk level is assessed as **{res2['risk_level'].upper()}**."
+            f"{greeting}\n\n"
+            f"🗺️ **Safe Navigational Passage Charted**: From **{detected_loc}** towards **{dest_name}**.\n"
+            f"• **Transit Distance**: **{res['distance_nm']} Nautical Miles**\n"
+            f"• **Estimated Time of Arrival (ETA)**: **{res['estimated_time_hours']} hours** at 10.5 knots\n"
+            f"• **Safety Assurance**: Cleared of {', '.join(res['hazards_avoided'])}\n\n"
+            f"🧭 *The cyan track line on your chart represents the safest route avoiding rough swell and restricted zones.*"
         )
 
-    elif any(w in msg for w in ['safe', 'risk', 'danger', 'warning', 'boundary', 'imbl']):
+    # Intent 3: Safety, IMBL Boundaries & Hazard Warnings
+    elif any(w in msg for w in ['safe', 'risk', 'danger', 'warning', 'boundary', 'imbl', 'cyclone', 'storm', 'swell']):
         res = assess_safety_risk.invoke({"lat": lat, "lon": lon})
         layers_raw.extend(res.get("geojson_layers", []))
 
-        steps.append(AgentStep(agent_name="Safety Agent", action="assess_safety_risk", result_summary=f"Risk score: {res['risk_score']}/100 — {len(res['warnings'])} warnings"))
+        steps.append(AgentStep(
+            agent_name="Safety Agent",
+            action="geofence_and_weather_risk_audit",
+            result_summary=f"Nearest IMBL: {res['imbl_distance_nm']} NM ({res['nearest_boundary']}). Risk Level: {res['risk_level'].upper()}"
+        ))
 
+        warnings_text = "\n".join([f"• ⚠️ {w}" for w in res['warnings']])
         text_response = (
-            f"{greet} The current safety risk is classified as **{res['risk_level'].upper()}** (score: {res['risk_score']}/100). "
-            f"You are approximately {res['imbl_distance_nm']} nautical miles from the International Maritime Boundary. "
-            f"Active warnings: {', '.join(res['warnings'])}."
+            f"{greeting}\n\n"
+            f"🛡️ **Maritime Safety & Border Geofence Audit**:\n"
+            f"• **Assessed Risk Level**: **{res['risk_level'].upper()}** (Threat Index: {res['risk_score']}/100)\n"
+            f"• **Distance to Nearest IMBL**: **{res['imbl_distance_nm']} Nautical Miles** ({res['nearest_boundary']})\n\n"
+            f"**Active Bulletins**:\n{warnings_text}\n\n"
+            f"📍 *Notice: Maintain active VHF watch and stay clear of purple International Boundary Lines.*"
         )
 
-    elif any(w in msg for w in ['fish', 'pfz', 'catch', 'fishing zone']):
-        res = find_potential_fishing_zones.invoke({"lat_min": lat - 1.5, "lon_min": lon - 1.5, "lat_max": lat + 1.5, "lon_max": lon + 1.5})
-        layers_raw.extend(res.get("geojson_layers", []))
-
-        steps.append(AgentStep(agent_name="Data Agent", action="fetch_sst_chlorophyll", result_summary="Cross-correlated SST and Chlorophyll-a data"))
-        steps.append(AgentStep(agent_name="PFZ Agent", action="find_potential_fishing_zones", result_summary=f"Identified {res.get('total_zones', 0)} fishing zones"))
-
-        text_response = (
-            f"{greet} I've identified **{res.get('total_zones', 0)} potential fishing zones** nearby. "
-            f"The best zone shows a {(res['zones'][0]['confidence'] * 100):.0f}% probability of high yield based on optimal SST and Chlorophyll levels. "
-            f"Check the green polygons on the map for coordinates."
-        )
-
-    elif any(w in msg for w in ['route', 'navigate', 'path', 'journey', 'travel']):
-        end_lat, end_lon = 8.08, 77.55  # Default destination: Kanyakumari
-        for key, coords in loc_map.items():
-            if key in msg and coords != (lat, lon):
-                end_lat, end_lon = coords
-                break
-
-        res = compute_safe_route.invoke({"start_lat": lat, "start_lon": lon, "end_lat": end_lat, "end_lon": end_lon})
-        layers_raw.extend(res.get("geojson_layers", []))
-
-        steps.append(AgentStep(agent_name="Safety Agent", action="check_hazards", result_summary=f"Scanned route corridor for hazards — {len(res['hazards_avoided'])} avoided"))
-        steps.append(AgentStep(agent_name="Routing Agent", action="compute_safe_route", result_summary=f"Route: {res['distance_nm']} NM, ETA: {res['estimated_time_hours']}h"))
-
-        text_response = (
-            f"{greet} I have charted a safe course for you. Total distance is **{res['distance_nm']} nautical miles** "
-            f"with an ETA of **{res['estimated_time_hours']} hours**. "
-            f"Hazards avoided: {', '.join(res['hazards_avoided'])}. "
-            f"The blue line on the map indicates the recommended path."
-        )
-
+    # Default / General Oceanographic State
     else:
-        res = discover_ocean_data.invoke({"lat": lat, "lon": lon, "radius_km": 100})
-        layers_raw.extend(res.get("geojson_layers", []))
+        res_data = discover_ocean_data.invoke({"lat": lat, "lon": lon, "radius_km": 70})
+        res_safe = assess_safety_risk.invoke({"lat": lat, "lon": lon})
 
-        steps.append(AgentStep(agent_name="Data Agent", action="discover_ocean_data", result_summary="Retrieved general ocean overview"))
-        steps.append(AgentStep(agent_name="Synthesis", action="summarize", result_summary="Compiled SST, chlorophyll, and weather data"))
+        layers_raw.extend(res_data.get("geojson_layers", []))
+        layers_raw.extend(res_safe.get("geojson_layers", []))
+
+        steps.append(AgentStep(
+            agent_name="Data Discovery Agent",
+            action="gather_coastal_telemetry",
+            result_summary=f"Retrieved SST ({res_data['sst_summary']['avg']}°C), Chlorophyll, and Weather for {detected_loc}"
+        ))
+        steps.append(AgentStep(
+            agent_name="Synthesis Agent",
+            action="generate_personalized_brief",
+            result_summary=f"Compiled multi-source marine brief. Safety index: {res_safe['risk_level'].upper()}"
+        ))
 
         text_response = (
-            f"{greet} Sea surface temperature is currently {res['sst_summary']['avg']}°C on average. "
-            f"{res['chlorophyll_summary']} {res['weather_summary']} "
-            f"Let me know if you need specific fishing zones, hazard maps, or safe routing!"
+            f"{greeting}\n\n"
+            f"🌊 **Current Oceanographic Conditions off {detected_loc}**:\n"
+            f"• **Sea Surface Temperature**: Average **{res_data['sst_summary']['avg']}°C** (Range: {res_data['sst_summary']['min']}°C - {res_data['sst_summary']['max']}°C)\n"
+            f"• **Productivity**: {res_data['chlorophyll_summary']}\n"
+            f"• **Weather & Sea State**: {res_data['weather_summary']}\n"
+            f"• **Border Proximity**: {res_safe['imbl_distance_nm']} NM from {res_safe['nearest_boundary']}\n\n"
+            f"💬 *Ask me for Potential Fishing Zones (PFZ), a safe routing corridor, or a detailed weather bulletin!*"
         )
 
-    # Deduplicate layers by ID, convert to validated Pydantic models
+    # Deduplicate layers by ID to avoid overlapping layers
     unique_raw = list({l["id"]: l for l in layers_raw}.values())
 
     return ChatResponse(
         text_response=text_response,
         agent_reasoning=steps,
-        geojson_layers=_to_geojson_layers(unique_raw),
+        geojson_layers=_to_geojson_layers(unique_raw)
     )

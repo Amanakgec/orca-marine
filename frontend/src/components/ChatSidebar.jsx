@@ -6,6 +6,13 @@ export default function ChatSidebar({ messages, isLoading, language, setLanguage
   const [inputText, setInputText] = useState('');
   const endOfMessagesRef = useRef(null);
 
+  const quickPrompts = [
+    { label: "🐟 Fishing in Kochi", query: "Show potential fishing zones near Kochi" },
+    { label: "🌊 Weather in Mumbai", query: "What are the ocean weather and wave conditions off Mumbai?" },
+    { label: "⚠️ Risk at Rameswaram", query: "Check safety risk and IMBL boundary near Rameswaram" },
+    { label: "🗺️ Route Vizag to Chennai", query: "Compute a safe navigation route from Vizag to Chennai" }
+  ];
+
   const scrollToBottom = () => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -32,29 +39,31 @@ export default function ChatSidebar({ messages, isLoading, language, setLanguage
       <div className="sidebar-header">
         <div className="logo-area">
           <div className="title">🐋 ORCA</div>
-          <div className="subtitle">Marine Intelligence Platform</div>
+          <div className="subtitle">Marine Intelligence Swarm</div>
         </div>
         <select 
           className="lang-select"
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
+          title="Select Coastal Language"
         >
           <option value="en">English</option>
-          <option value="gu">ગુજરાતી</option>
-          <option value="mr">मराठी</option>
-          <option value="gom">Konkani</option>
-          <option value="kn">ಕನ್ನಡ</option>
-          <option value="ml">മലയാളം</option>
-          <option value="ta">தமிழ்</option>
-          <option value="te">తెలుగు</option>
-          <option value="or">ଓଡ଼ିଆ</option>
-          <option value="bn">বাংলা</option>
+          <option value="hi">हिन्दी (Hindi)</option>
+          <option value="gu">ગુજરાતી (Gujarati)</option>
+          <option value="mr">मराठी (Marathi)</option>
+          <option value="gom">कोंकणी (Konkani)</option>
+          <option value="kn">ಕನ್ನಡ (Kannada)</option>
+          <option value="ml">മലയാളം (Malayalam)</option>
+          <option value="ta">தமிழ் (Tamil)</option>
+          <option value="te">తెలుగు (Telugu)</option>
+          <option value="or">ଓଡ଼ିଆ (Odia)</option>
+          <option value="bn">বাংলা (Bengali)</option>
         </select>
       </div>
 
       <div className="chat-messages">
         {messages.map((msg, idx) => (
-          <ChatMessage key={idx} message={msg} />
+          <ChatMessage key={idx} message={msg} language={language} />
         ))}
         {isLoading && (
           <div className="message-wrapper assistant">
@@ -66,11 +75,26 @@ export default function ChatSidebar({ messages, isLoading, language, setLanguage
         <div ref={endOfMessagesRef} />
       </div>
 
+      {/* Quick Prompt Chips */}
+      <div className="quick-prompts">
+        {quickPrompts.map((item, idx) => (
+          <button
+            key={idx}
+            className="prompt-chip"
+            onClick={() => onSend(item.query)}
+            disabled={isLoading}
+            type="button"
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
       <div className="chat-input-area">
         <div className="input-container">
           <textarea
             className="chat-input"
-            placeholder="Ask about ocean conditions..."
+            placeholder="Ask about fishing, weather, or routes in your language..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -80,7 +104,7 @@ export default function ChatSidebar({ messages, isLoading, language, setLanguage
           <VoiceButton 
             onTranscript={(text) => {
                if (text) {
-                 setInputText((prev) => prev + (prev ? ' ' : '') + text);
+                 setInputText((prev) => prev ? `${prev} ${text}` : text);
                }
             }} 
             language={language} 
@@ -90,6 +114,7 @@ export default function ChatSidebar({ messages, isLoading, language, setLanguage
             onClick={handleSend}
             disabled={!inputText.trim() || isLoading}
             title="Send Message"
+            type="button"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="22" y1="2" x2="11" y2="13"></line>

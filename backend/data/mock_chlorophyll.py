@@ -1,61 +1,46 @@
 import numpy as np
 
-def get_chlorophyll_data(lat_min: float = 7.0, lon_min: float = 77.0, lat_max: float = 14.0, lon_max: float = 82.0) -> dict:
-    rng = np.random.default_rng(seed=42)
-    
-    # Pre-defined centers, mostly near coast and river mouths
-    centers = [
-        (10.3, 79.8),  # Cauvery delta
-        (11.7, 79.9),  # Cuddalore
-        (9.3, 79.3),   # Rameswaram
-        (8.1, 77.5),   # Kanyakumari
-        (13.0, 80.3),  # Chennai
-        (8.8, 78.2),   # Tuticorin
-        (10.7, 79.8),  # Nagapattinam
-        (12.5, 80.2),  # Kalpakkam
-    ]
-    
+def get_chlorophyll_data(lat_min: float = 7.0, lon_min: float = 68.0, lat_max: float = 24.0, lon_max: float = 90.0) -> dict:
+    rng = np.random.default_rng(seed=int(abs(lat_min * 50 + lon_min * 20)) % 10000 + 101)
     features = []
-    
-    for i, (lat_c, lon_c) in enumerate(centers):
-        # Determine concentration
-        val = rng.uniform(0.2, 8.0)
-        # Force higher concentration near Cauvery delta
-        if (lat_c, lon_c) == (10.3, 79.8):
-            val = rng.uniform(5.0, 8.0)
-            
-        if val < 1:
-            level = "low"
-        elif val <= 3:
-            level = "medium"
-        else:
-            level = "high"
-            
-        # Create a simple polygon around the center
-        lat_offset = rng.uniform(0.1, 0.25)
-        lon_offset = rng.uniform(0.1, 0.25)
-        
+
+    # Generate 5-8 chlorophyll concentration plumes within the requested coastal bounding box
+    center_lat = (lat_min + lat_max) / 2.0
+    center_lon = (lon_min + lon_max) / 2.0
+
+    num_patches = rng.integers(4, 7)
+    for i in range(num_patches):
+        c_lat = rng.uniform(lat_min + 0.1, lat_max - 0.1) if (lat_max - lat_min > 0.3) else center_lat + rng.uniform(-0.2, 0.2)
+        c_lon = rng.uniform(lon_min + 0.1, lon_max - 0.1) if (lon_max - lon_min > 0.3) else center_lon + rng.uniform(-0.2, 0.2)
+
+        val = round(rng.uniform(1.2, 7.8), 2)
+        level = "high" if val > 3.0 else ("medium" if val >= 1.5 else "low")
+
+        lat_offset = rng.uniform(0.12, 0.3)
+        lon_offset = rng.uniform(0.12, 0.3)
+
         polygon = [
-            [lon_c - lon_offset, lat_c - lat_offset],
-            [lon_c + lon_offset, lat_c - lat_offset],
-            [lon_c + lon_offset, lat_c + lat_offset],
-            [lon_c - lon_offset, lat_c + lat_offset],
-            [lon_c - lon_offset, lat_c - lat_offset] # close the polygon
+            [round(c_lon - lon_offset, 4), round(c_lat - lat_offset, 4)],
+            [round(c_lon + lon_offset, 4), round(c_lat - lat_offset, 4)],
+            [round(c_lon + lon_offset, 4), round(c_lat + lat_offset, 4)],
+            [round(c_lon - lon_offset, 4), round(c_lat + lat_offset, 4)],
+            [round(c_lon - lon_offset, 4), round(c_lat - lat_offset, 4)]
         ]
-        
-        feature = {
+
+        features.append({
             "type": "Feature",
             "geometry": {
                 "type": "Polygon",
                 "coordinates": [polygon]
             },
             "properties": {
-                "chl_a_mg_m3": round(val, 2),
-                "concentration_level": level
+                "chl_a_mg_m3": val,
+                "concentration_level": level,
+                "phytoplankton_index": round(val * 1.3, 2),
+                "notes": f"{level.capitalize()} chlorophyll-a density zone favorable for marine food web."
             }
-        }
-        features.append(feature)
-        
+        })
+
     return {
         "type": "FeatureCollection",
         "features": features
