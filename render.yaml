@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: orca-marine
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: MOCK_MODE
+        value: "true"
+      - key: GOOGLE_API_KEY
+        sync: false
