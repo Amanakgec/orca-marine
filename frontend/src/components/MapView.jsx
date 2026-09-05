@@ -153,8 +153,8 @@ export default function MapView({ layers }) {
           }
         };
 
-        // Prefer dynamic layers like PFZ, weather, or routes
-        const targetLayers = layers.filter(l => l.id !== 'imbl-layer');
+        // Prefer focused operational layers (PFZ, weather, routes, cyclone) over national boundary envelopes
+        const targetLayers = layers.filter(l => !['imbl-layer', 'imbl-route-layer', 'mpa-layer'].includes(l.id));
         const layersToFit = targetLayers.length ? targetLayers : layers;
 
         layersToFit.forEach(l => {

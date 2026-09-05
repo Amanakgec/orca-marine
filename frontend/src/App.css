@@ -610,3 +610,135 @@ body {
 .splash-btn:active {
   transform: translateY(0);
 }
+
+/* Header Controls & Vessel Selector */
+.header-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.vessel-select {
+  background-color: var(--bg-input);
+  color: #00d4ff;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.72rem;
+  outline: none;
+  cursor: pointer;
+  max-width: 140px;
+}
+
+/* ISRO SIH26176 Scenario Container */
+.quick-prompts-container {
+  padding: 0.6rem 1.25rem 0.2rem 1.25rem;
+}
+
+.quick-prompts-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #00d4ff;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* Coastal Telemetry Ribbon */
+.coastal-telemetry-banner {
+  position: absolute;
+  top: 1rem;
+  left: calc(380px + 1.25rem);
+  right: 1.25rem;
+  z-index: 5;
+  background: rgba(10, 22, 40, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 12px;
+  padding: 0.65rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.telemetry-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.telemetry-label {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.telemetry-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.alert-badge {
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.alert-normal {
+  background: rgba(46, 204, 113, 0.18);
+  color: #2ecc71;
+  border: 1px solid #2ecc71;
+}
+
+.alert-caution {
+  background: rgba(241, 196, 15, 0.18);
+  color: #f1c40f;
+  border: 1px solid #f1c40f;
+}
+
+.alert-warning {
+  background: rgba(230, 126, 34, 0.2);
+  color: #e67e22;
+  border: 1px solid #e67e22;
+}
+
+.alert-severe {
+  background: rgba(231, 76, 60, 0.25);
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+  animation: severe-pulse 1.6s infinite;
+}
+
+@keyframes severe-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+}
+
+@media (max-width: 900px) {
+  .coastal-telemetry-banner {
+    left: 1rem;
+    right: 1rem;
+    top: auto;
+    bottom: 1rem;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+

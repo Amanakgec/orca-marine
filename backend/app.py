@@ -121,7 +121,10 @@ async def chat(request: ChatRequest):
         internal_request = ChatRequest(
             message=processed_message,
             location=request.location,
-            language=target_lang
+            language=target_lang,
+            vessel_type=request.vessel_type,
+            time_horizon=request.time_horizon,
+            conversation_history=request.conversation_history
         )
 
         mock_mode = os.getenv("MOCK_MODE", "true").lower() == "true"
