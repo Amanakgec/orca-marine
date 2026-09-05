@@ -357,14 +357,30 @@ body {
   cursor: not-allowed;
 }
 
+/* Main Content Area */
+.main-content {
+  flex: 1;
+  height: 100vh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
 /* Map Area */
 .map-container {
+  width: 100%;
+  height: 100%;
   flex: 1;
   position: relative;
-  background-color: #1e1e1e; /* placeholder before load */
+  min-height: 0;
+  background-color: #0b1a2e;
 }
 
 .map-wrapper {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
 }
@@ -372,14 +388,15 @@ body {
 /* Layer Panel */
 .layer-panel {
   position: absolute;
-  top: 1rem;
+  top: 5.25rem;
   right: 1rem;
   background: rgba(26, 39, 68, 0.85);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 1rem;
-  min-width: 200px;
+  padding: 0.75rem 1rem;
+  min-width: 180px;
+  max-width: 260px;
   z-index: 5;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   color: white;
@@ -473,8 +490,14 @@ body {
     border-right: none;
     border-top: 1px solid var(--border-color);
   }
-  .map-container {
+  .main-content {
+    width: 100%;
     height: 50vh;
+    flex: none;
+  }
+  .map-container {
+    width: 100%;
+    height: 100%;
   }
 }
 
@@ -651,7 +674,7 @@ body {
 .coastal-telemetry-banner {
   position: absolute;
   top: 1rem;
-  left: calc(380px + 1.25rem);
+  left: 1.25rem;
   right: 1.25rem;
   z-index: 5;
   background: rgba(10, 22, 40, 0.88);
@@ -733,12 +756,14 @@ body {
 
 @media (max-width: 900px) {
   .coastal-telemetry-banner {
-    left: 1rem;
-    right: 1rem;
-    top: auto;
-    bottom: 1rem;
+    left: 0.75rem;
+    right: 0.75rem;
+    top: 0.75rem;
+    bottom: auto;
     overflow-x: auto;
     white-space: nowrap;
+    padding: 0.45rem 0.75rem;
+    gap: 0.75rem;
   }
 }
 
@@ -782,5 +807,18 @@ body {
   font-weight: 600;
   border: 1px solid rgba(0, 212, 255, 0.5);
 }
+
+@media (max-width: 768px) {
+  .basemap-selector {
+    bottom: 0.75rem;
+    left: 0.75rem;
+    padding: 0.2rem 0.4rem;
+  }
+  .basemap-btn {
+    padding: 0.25rem 0.45rem;
+    font-size: 0.7rem;
+  }
+}
+
 
 

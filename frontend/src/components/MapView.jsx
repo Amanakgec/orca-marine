@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import LayerPanel from './LayerPanel';
 
 const BASEMAP_STYLES = {
@@ -41,11 +42,48 @@ export default function MapView({ layers }) {
 
     map.on('load', () => {
       mapRef.current = map;
+      map.resize();
       if (syncLayersRef.current) syncLayersRef.current();
     });
 
+    // ResizeObserver watches the map wrapper container DOM element for any dimension changes
+    let resizeObserver = null;
+    if (typeof window !== 'undefined' && window.ResizeObserver && mapContainer.current) {
+      resizeObserver = new ResizeObserver(() => {
+        if (mapRef.current) {
+          mapRef.current.resize();
+        }
+      });
+      resizeObserver.observe(mapContainer.current);
+    }
+
+    // Window resize event fallback
+    const handleWindowResize = () => {
+      if (mapRef.current) {
+        mapRef.current.resize();
+      }
+    };
+    window.addEventListener('resize', handleWindowResize);
+
+    // Initial delayed resizes to guarantee sizing across all viewport resolutions & initial layouts
+    const t1 = setTimeout(() => {
+      if (mapRef.current) mapRef.current.resize();
+    }, 100);
+    const t2 = setTimeout(() => {
+      if (mapRef.current) mapRef.current.resize();
+    }, 400);
+    const t3 = setTimeout(() => {
+      if (mapRef.current) mapRef.current.resize();
+    }, 1000);
+
     return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      window.removeEventListener('resize', handleWindowResize);
+      if (resizeObserver) resizeObserver.disconnect();
       map.remove();
+      mapRef.current = null;
     };
   }, []);
 
@@ -228,6 +266,7 @@ export default function MapView({ layers }) {
     setActiveBasemap(styleKey);
     map.setStyle(BASEMAP_STYLES[styleKey].url);
     map.once('style.load', () => {
+      map.resize();
       if (syncLayersRef.current) syncLayersRef.current();
     });
   };

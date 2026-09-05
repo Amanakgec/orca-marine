@@ -24,9 +24,16 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [language, setLanguage] = useState('en');
 
+  const dismissIntro = useCallback(() => {
+    setShowIntro(false);
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 50);
+  }, []);
+
   const handleSend = useCallback(async (text) => {
     if (!text.trim()) return;
-    if (showIntro) setShowIntro(false);
+    if (showIntro) dismissIntro();
 
     const userMsg = {
       role: 'user',
@@ -94,7 +101,7 @@ export default function App() {
     <div className="app-container">
       {/* Aesthetic Hero Modal Overlay (dismissible on click) */}
       {showIntro && (
-        <div className="splash-screen" onClick={() => setShowIntro(false)}>
+        <div className="splash-screen" onClick={dismissIntro}>
           <div className="splash-content" onClick={(e) => e.stopPropagation()}>
             <div className="splash-logo">🐋</div>
             <div className="splash-tagline">ISRO SIH26176 · ORCA</div>
@@ -110,10 +117,10 @@ export default function App() {
               <div className="splash-feature"><span>🛡️</span><span>MPA &amp; IMBL Geofencing</span></div>
               <div className="splash-feature"><span>🗣️</span><span>11 Indian Languages</span></div>
             </div>
-            <button className="splash-btn" onClick={() => setShowIntro(false)} type="button">
+            <button className="splash-btn" onClick={dismissIntro} type="button">
               🚀 Explore Marine Swarm Map
             </button>
-            <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#94a3b8', cursor: 'pointer' }} onClick={() => setShowIntro(false)}>
+            <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: '#94a3b8', cursor: 'pointer' }} onClick={dismissIntro}>
               (Click anywhere to start)
             </div>
           </div>
@@ -130,7 +137,7 @@ export default function App() {
         onSend={handleSend}
       />
 
-      <div style={{ position: 'relative', flex: 1, height: '100%' }}>
+      <main className="main-content">
         {/* Coastal Telemetry Live Ribbon */}
         {telemetry && (
           <div className="coastal-telemetry-banner">
@@ -164,7 +171,7 @@ export default function App() {
         )}
 
         <MapView layers={layers} />
-      </div>
+      </main>
     </div>
   );
 }
