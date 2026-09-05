@@ -2,18 +2,35 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import LayerPanel from './LayerPanel';
 
+const BASEMAP_STYLES = {
+  voyager: {
+    label: '🌊 Nautical Blue Ocean',
+    url: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
+  },
+  dark: {
+    label: '🌙 Dark Radar Chart',
+    url: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+  },
+  positron: {
+    label: '🗺️ Minimal Light',
+    url: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json'
+  }
+};
+
 export default function MapView({ layers }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const [visibleLayers, setVisibleLayers] = useState(new Set());
+  const [activeBasemap, setActiveBasemap] = useState('voyager');
+  const syncLayersRef = useRef(null);
 
-  // Initialize Map
+  // Initialize Map with Nautical Voyager (Vibrant Blue Ocean)
   useEffect(() => {
     if (mapRef.current) return;
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+      style: BASEMAP_STYLES.voyager.url,
       center: [78.9629, 15.5937], // Centered across the Indian Peninsula
       zoom: 5,
       attributionControl: false
@@ -24,6 +41,7 @@ export default function MapView({ layers }) {
 
     map.on('load', () => {
       mapRef.current = map;
+      if (syncLayersRef.current) syncLayersRef.current();
     });
 
     return () => {
@@ -34,10 +52,9 @@ export default function MapView({ layers }) {
   // Sync Layers & Auto-fly to queried region
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
 
     const syncLayers = () => {
-      if (!map.isStyleLoaded()) return;
+      if (!map || !map.isStyleLoaded()) return;
 
       const currentIds = layers.map(l => l.id);
       const style = map.getStyle();
@@ -132,7 +149,7 @@ export default function MapView({ layers }) {
         }
       });
 
-      // 3. Auto-fit camera to newly returned specific layers (excluding broad static IMBL)
+      // 3. Auto-fit camera to newly returned specific layers (excluding broad static boundaries)
       if (layers.length > 0) {
         let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
         let found = false;
@@ -168,7 +185,7 @@ export default function MapView({ layers }) {
 
         if (found) {
           map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
-            padding: { top: 60, bottom: 60, left: 60, right: 60 },
+            padding: { top: 70, bottom: 70, left: 70, right: 70 },
             maxZoom: 9.5,
             duration: 1500
           });
@@ -176,9 +193,11 @@ export default function MapView({ layers }) {
       }
     };
 
-    if (map.isStyleLoaded()) {
+    syncLayersRef.current = syncLayers;
+
+    if (map && map.isStyleLoaded()) {
       syncLayers();
-    } else {
+    } else if (map) {
       map.on('load', syncLayers);
     }
   }, [layers, visibleLayers]);
@@ -203,9 +222,35 @@ export default function MapView({ layers }) {
     });
   }, []);
 
+  const switchBasemap = (styleKey) => {
+    const map = mapRef.current;
+    if (!map || styleKey === activeBasemap) return;
+    setActiveBasemap(styleKey);
+    map.setStyle(BASEMAP_STYLES[styleKey].url);
+    map.once('style.load', () => {
+      if (syncLayersRef.current) syncLayersRef.current();
+    });
+  };
+
   return (
     <div className="map-container">
       <div ref={mapContainer} className="map-wrapper" />
+      
+      {/* Basemap Style Switcher Control */}
+      <div className="basemap-selector">
+        {Object.entries(BASEMAP_STYLES).map(([key, item]) => (
+          <button
+            key={key}
+            type="button"
+            className={`basemap-btn ${activeBasemap === key ? 'active' : ''}`}
+            onClick={() => switchBasemap(key)}
+            title={item.label}
+          >
+            {item.label.split(' ')[0]} {item.label.split(' ')[1]}
+          </button>
+        ))}
+      </div>
+
       {layers.length > 0 && (
         <LayerPanel 
           layers={layers} 

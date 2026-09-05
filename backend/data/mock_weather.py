@@ -179,12 +179,15 @@ def get_weather_data(lat: float = 13.0, lon: float = 80.2, radius_km: float = 10
     features = []
 
     sea_basin = "Arabian Sea" if lon < 77.5 else "Bay of Bengal"
+    # Seaward direction: West for Arabian Sea (negative lon), East for Bay of Bengal (positive lon)
+    seaward_sign = -1.0 if lon < 77.5 else 1.0
 
+    # Ensure all offshore weather polygons are placed strictly in maritime waters (never inland on subcontinent)
     offsets = [
-        (0.0, 0.0),
-        (-0.8, -0.6),
-        (0.8, 0.7),
-        (-1.2, 0.5)
+        (0.0, seaward_sign * 0.45),
+        (-0.5, seaward_sign * 0.85),
+        (0.5, seaward_sign * 0.70),
+        (-0.9, seaward_sign * 1.20)
     ]
 
     for i, (d_lat, d_lon) in enumerate(offsets):

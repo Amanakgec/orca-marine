@@ -742,3 +742,45 @@ body {
   }
 }
 
+/* Basemap Style Switcher */
+.basemap-selector {
+  position: absolute;
+  bottom: 2rem;
+  left: 1.5rem;
+  z-index: 10;
+  display: flex;
+  gap: 0.35rem;
+  background: rgba(10, 22, 40, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  padding: 0.3rem 0.5rem;
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.basemap-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  padding: 0.3rem 0.65rem;
+  border-radius: 14px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.basemap-btn:hover {
+  color: #ffffff;
+  background: rgba(0, 212, 255, 0.15);
+}
+
+.basemap-btn.active {
+  background: rgba(0, 212, 255, 0.28);
+  color: #00d4ff;
+  font-weight: 600;
+  border: 1px solid rgba(0, 212, 255, 0.5);
+}
+
+

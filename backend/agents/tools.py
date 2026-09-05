@@ -217,13 +217,16 @@ def find_potential_fishing_zones(lat_min: float, lon_min: float, lat_max: float,
 @tool
 def compute_safe_route(start_lat: float, start_lon: float, end_lat: float, end_lon: float, vessel_type: str = 'motorized_boat') -> Dict[str, Any]:
     """Computes an optimized safe navigational passage between waypoints avoiding rough weather, MPAs, and IMBL boundaries."""
-    weather_data = get_weather_data((start_lat + end_lat)/2.0, (start_lon + end_lon)/2.0, 150)
+    mid_lat = (start_lat + end_lat) / 2.0
+    seaward_sign = -1.0 if (start_lon + end_lon)/2.0 < 77.5 else 1.0
+    # Push mid waypoint safely offshore into marine shipping corridor (~30-40 NM)
+    mid_lon = (start_lon + end_lon) / 2.0 + seaward_sign * 0.55
+
+    # Avoided weather hazard zones are positioned further seaward in deep water
+    hazard_center_lon = mid_lon + seaward_sign * 0.70
+    weather_data = get_weather_data(mid_lat, hazard_center_lon, 120)
     imbl_data = get_imbl_boundary()
     mpa_data = get_mpa_zones()
-
-    mid_lat = (start_lat + end_lat) / 2.0
-    seaward_bias = -0.38 if (start_lon + end_lon)/2.0 < 77.5 else 0.38
-    mid_lon = (start_lon + end_lon) / 2.0 + seaward_bias
 
     waypoints = [
         [round(start_lon, 4), round(start_lat, 4)],
