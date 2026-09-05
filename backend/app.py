@@ -9,6 +9,8 @@ if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
 from fastapi import FastAPI, HTTPException, Response
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import edge_tts
@@ -119,7 +121,10 @@ async def chat(request: ChatRequest):
         internal_request = ChatRequest(
             message=processed_message,
             location=request.location,
-            language=target_lang
+            language=target_lang,
+            vessel_type=request.vessel_type,
+            time_horizon=request.time_horizon,
+            conversation_history=request.conversation_history
         )
 
         mock_mode = os.getenv("MOCK_MODE", "true").lower() == "true"
@@ -141,3 +146,51 @@ async def chat(request: ChatRequest):
     except Exception as e:
         print(f"[Error in /api/chat]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ==========================================
+# Frontend Static Asset Serving (Production)
+# ==========================================
+FRONTEND_DIST = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+if not os.path.exists(FRONTEND_DIST):
+    # Fallback to local dist if packaged in backend folder
+    alt_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "dist"))
+    if os.path.exists(alt_dist):
+        FRONTEND_DIST = alt_dist
+
+@app.get("/")
+async def serve_root():
+    if os.path.exists(FRONTEND_DIST):
+        index_path = os.path.join(FRONTEND_DIST, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+    return {
+        "status": "online",
+        "service": "ORCA Marine Intelligence API",
+        "health": "/api/health",
+        "docs": "/docs",
+        "message": "Backend is running! Point your Vercel frontend VITE_API_URL to this domain."
+    }
+
+if os.path.exists(FRONTEND_DIST):
+    assets_dir = os.path.join(FRONTEND_DIST, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="static-assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="API endpoint not found")
+        file_path = os.path.join(FRONTEND_DIST, full_path)
+        if full_path and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        index_path = os.path.join(FRONTEND_DIST, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
+        raise HTTPException(status_code=404, detail="Page not found")
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    print(f"[ORCA] Starting server on port {port}...")
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
+

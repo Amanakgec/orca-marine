@@ -357,14 +357,30 @@ body {
   cursor: not-allowed;
 }
 
+/* Main Content Area */
+.main-content {
+  flex: 1;
+  height: 100vh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
 /* Map Area */
 .map-container {
+  width: 100%;
+  height: 100%;
   flex: 1;
   position: relative;
-  background-color: #1e1e1e; /* placeholder before load */
+  min-height: 0;
+  background-color: #0b1a2e;
 }
 
 .map-wrapper {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
 }
@@ -372,14 +388,15 @@ body {
 /* Layer Panel */
 .layer-panel {
   position: absolute;
-  top: 1rem;
+  top: 5.25rem;
   right: 1rem;
   background: rgba(26, 39, 68, 0.85);
   backdrop-filter: blur(8px);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 1rem;
-  min-width: 200px;
+  padding: 0.75rem 1rem;
+  min-width: 180px;
+  max-width: 260px;
   z-index: 5;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   color: white;
@@ -473,8 +490,14 @@ body {
     border-right: none;
     border-top: 1px solid var(--border-color);
   }
-  .map-container {
+  .main-content {
+    width: 100%;
     height: 50vh;
+    flex: none;
+  }
+  .map-container {
+    width: 100%;
+    height: 100%;
   }
 }
 
@@ -610,3 +633,192 @@ body {
 .splash-btn:active {
   transform: translateY(0);
 }
+
+/* Header Controls & Vessel Selector */
+.header-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.vessel-select {
+  background-color: var(--bg-input);
+  color: #00d4ff;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.72rem;
+  outline: none;
+  cursor: pointer;
+  max-width: 140px;
+}
+
+/* ISRO SIH26176 Scenario Container */
+.quick-prompts-container {
+  padding: 0.6rem 1.25rem 0.2rem 1.25rem;
+}
+
+.quick-prompts-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #00d4ff;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* Coastal Telemetry Ribbon */
+.coastal-telemetry-banner {
+  position: absolute;
+  top: 1rem;
+  left: 1.25rem;
+  right: 1.25rem;
+  z-index: 5;
+  background: rgba(10, 22, 40, 0.88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 12px;
+  padding: 0.65rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.telemetry-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.telemetry-label {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.telemetry-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.alert-badge {
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.alert-normal {
+  background: rgba(46, 204, 113, 0.18);
+  color: #2ecc71;
+  border: 1px solid #2ecc71;
+}
+
+.alert-caution {
+  background: rgba(241, 196, 15, 0.18);
+  color: #f1c40f;
+  border: 1px solid #f1c40f;
+}
+
+.alert-warning {
+  background: rgba(230, 126, 34, 0.2);
+  color: #e67e22;
+  border: 1px solid #e67e22;
+}
+
+.alert-severe {
+  background: rgba(231, 76, 60, 0.25);
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+  animation: severe-pulse 1.6s infinite;
+}
+
+@keyframes severe-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+}
+
+@media (max-width: 900px) {
+  .coastal-telemetry-banner {
+    left: 0.75rem;
+    right: 0.75rem;
+    top: 0.75rem;
+    bottom: auto;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 0.45rem 0.75rem;
+    gap: 0.75rem;
+  }
+}
+
+/* Basemap Style Switcher */
+.basemap-selector {
+  position: absolute;
+  bottom: 2rem;
+  left: 1.5rem;
+  z-index: 10;
+  display: flex;
+  gap: 0.35rem;
+  background: rgba(10, 22, 40, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  padding: 0.3rem 0.5rem;
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.basemap-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  padding: 0.3rem 0.65rem;
+  border-radius: 14px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.basemap-btn:hover {
+  color: #ffffff;
+  background: rgba(0, 212, 255, 0.15);
+}
+
+.basemap-btn.active {
+  background: rgba(0, 212, 255, 0.28);
+  color: #00d4ff;
+  font-weight: 600;
+  border: 1px solid rgba(0, 212, 255, 0.5);
+}
+
+@media (max-width: 768px) {
+  .basemap-selector {
+    bottom: 0.75rem;
+    left: 0.75rem;
+    padding: 0.2rem 0.4rem;
+  }
+  .basemap-btn {
+    padding: 0.25rem 0.45rem;
+    font-size: 0.7rem;
+  }
+}
+
+
+

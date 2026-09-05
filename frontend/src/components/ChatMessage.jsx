@@ -37,7 +37,8 @@ export default function ChatMessage({ message, language = 'en' }) {
         language: language || 'en'
       });
 
-      const audio = new Audio(`/api/tts?${params.toString()}`);
+      const apiBase = import.meta.env.VITE_API_URL || '';
+      const audio = new Audio(`${apiBase}/api/tts?${params.toString()}`);
       audioRef.current = audio;
 
       audio.onplay = () => {

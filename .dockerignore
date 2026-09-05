@@ -1,0 +1,15 @@
+.git
+.gitignore
+.dockerignore
+**/node_modules
+**/dist
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.env
+.env.*
+!.env.example
+*.log
+backend/test.mp3
+frontend/public_url.txt
