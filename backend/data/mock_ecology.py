@@ -49,8 +49,8 @@ def analyze_fishery_decline(lat: float, lon: float, location_name: str = "Target
 
     # Compute realistic anomalies
     sst_anomaly = round(rng.uniform(1.2, 2.4), 2)  # Positive thermal anomaly (heatwave)
-    upwelling_index_change = round(rng.uniform(-25.0, -48.0), 1)  # % reduction in upwelling strength
-    chl_anomaly = round(rng.uniform(-20.0, -42.0), 1)  # % drop in primary chlorophyll-a
+    upwelling_index_change = round(rng.uniform(-48.0, -25.0), 1)  # % reduction in upwelling strength
+    chl_anomaly = round(rng.uniform(-42.0, -20.0), 1)  # % drop in primary chlorophyll-a
     dissolved_oxygen = round(rng.uniform(1.8, 3.2), 1)  # mg/L (hypoxia threshold is < 2.0 mg/L)
 
     causes = []
