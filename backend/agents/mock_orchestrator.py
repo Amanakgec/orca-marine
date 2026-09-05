@@ -153,11 +153,102 @@ async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
 
     greeting = f"Maritime Swarm Intelligence reporting for **{detected_loc}** ({basin}):"
 
+    # Check if the user is asking about Motto, Mission, Capabilities, or What ORCA does for people:
+    is_motto_or_capabilities = any(phrase in msg for phrase in [
+        'what can you do', 'what do you do', 'what can this do', 'what does this do',
+        'motto', 'mission', 'for the people', 'help the people', 'help fishermen',
+        'who are you', 'what is orca', 'what is this project', 'about orca', 'about this project',
+        'how can you help', 'how does this help', 'purpose of this project', 'purpose of orca',
+        'capabilities', 'benefits', 'why orca', 'why should', 'explain this project', 'features'
+    ])
+
+    # Check if the user is giving a friendly greeting without an operational question:
+    greeting_tokens = ['hi', 'hello', 'hey', 'vanakkam', 'namaste', 'namaskar', 'pranam', 'kem cho', 'good morning', 'good afternoon', 'good evening']
+    is_pure_greeting = (
+        msg.strip() in greeting_tokens or 
+        any(msg.strip().startswith(g + " ") or msg.strip().startswith(g + "!") or msg.strip().startswith(g + ",") for g in greeting_tokens)
+    ) and not any(k in msg for k in ['fish', 'weather', 'cyclone', 'tide', 'route', 'safe', 'decline', 'mpa', 'zone', 'port', 'near', 'sea', 'water', 'wave', 'wind', 'alert', 'lightning'])
+
+    # =========================================================================
+    # High-Priority: Motto, Mission & Multi-Stakeholder Value Proposition
+    # Example: "hi what can you do?", "what can you do for the people using this project?", "what is the motto of this project?"
+    # =========================================================================
+    if is_motto_or_capabilities:
+        # Load illustrative MPA, boundary, and Potential Fishing Zone layers for a rich visual overview
+        res_mpa = audit_restricted_zones.invoke({"lat": 13.08, "lon": 80.27})
+        res_pfz = find_potential_fishing_zones.invoke({"lat_min": 11.0, "lon_min": 79.0, "lat_max": 14.5, "lon_max": 81.5})
+        layers_raw.extend(res_mpa.get("geojson_layers", []))
+        layers_raw.extend(res_pfz.get("geojson_layers", []))
+
+        steps.append(AgentStep(
+            agent_name="Planning & Router Agent",
+            action="evaluate_system_mission_and_scope",
+            result_summary="Identified inquiry on ORCA mission, motto, and multi-stakeholder value architecture under ISRO SIH26176"
+        ))
+        steps.append(AgentStep(
+            agent_name="Synthesis Agent",
+            action="synthesize_stakeholder_impact_matrix",
+            result_summary="Formulated explainable operational capabilities for artisanal fishers, trawler fleets, coastal disaster authorities, and marine scientists"
+        ))
+
+        text_response = (
+            "🐋 **ORCA — Marine Ecosystem Reasoning with Collaborative Agents**\n"
+            "*(ISRO Problem Statement SIH26176 · Indian Space Research Organisation)*\n\n"
+            "🌟 **PROJECT MOTTO**:\n"
+            "**\"Bridging Space Science and Coastal Livelihoods — Empowering India's Blue Economy with Collaborative Marine Intelligence.\"**\n\n"
+            "🎯 **OUR CORE MISSION**:\n"
+            "To bridge the gap between cutting-edge space technology and ground-level marine operations. We transform petabytes of complex Earth Observation satellite data (Oceansat-3, INSAT-3D, GIS) and oceanographic forecasts into **plain-language, life-saving, and economically empowering conversational decisions** for every marine stakeholder along India's 7,516 km coastline.\n\n"
+            "👥 **WHAT ORCA DOES FOR THE PEOPLE USING THIS PLATFORM**:\n\n"
+            "1. 🎣 **For Artisanal & Traditional Fishermen**:\n"
+            "• **Pinpoint High-Yield Potential Fishing Zones (PFZs)**: Correlates 26°–28°C Sea Surface Temperature thermal breaks with optical chlorophyll plumes to reveal where fish congregate. Cuts offshore search time and **slashes vessel diesel expenses by 20%–30%**.\n"
+            "• **Vessel-Calibrated Safety Windows**: Delivers hourly operational clearances tailored to small motorized fiber boats and traditional *Vallams*, factoring in localized chop, wind gusts, and sandbar-clearing tide cycles.\n\n"
+            "2. 🛡️ **For Coastal Communities & Life Safety**:\n"
+            "• **Early Cyclone & Severe Weather Directives**: Ingests IMD satellite cyclone trajectories, eye coordinates, gale wind radiuses, and lightning squall clusters to warn fishers well before severe weather strikes.\n\n"
+            "3. ⚖️ **For Fishermen's Legal & Ecological Protection**:\n"
+            "• **Real-Time Geofence Guardian**: Enforces active boundary alerts for **Marine Protected Areas (MPAs)** (Gulf of Mannar, Gahirmatha Olive Ridley turtle sanctuaries) and UNCLOS **International Maritime Boundary Lines (IMBL)** with 5 Nautical Mile safety buffers to prevent accidental border crossings and legal detentions.\n\n"
+            "4. 🔬 **For Marine Scientists, Coastal Authorities & Port Managers**:\n"
+            "• **Ecological Productivity Diagnostics**: Explains sudden fish catch decline by analyzing satellite SST marine heatwaves, Ekman transport upwelling deficits, and seasonal hypoxia.\n"
+            "• **Safe Navigational Corridors**: Automatically generates waypoint routes dog-legging around rough sea states (>2.5m swells) and maritime hazard zones.\n\n"
+            "5. 🗣️ **For Every Coastal Citizen (Total Inclusivity)**:\n"
+            "• **Multilingual Voice & Chat in 11 Indian Languages** (Tamil, Telugu, Malayalam, Gujarati, Marathi, Bengali, Odia, Hindi, Kannada, etc.) with realistic regional neural speech, ensuring zero literacy barrier for grassroots fishers.\n\n"
+            "💡 *You can ask me any question about your local waters, or click any of the 8 ISRO Problem Scenarios on the left to see live collaborative agent reasoning in action!*"
+        )
+
+    # =========================================================================
+    # High-Priority: Pure Friendly Greeting
+    # Example: "hi", "hello", "namaste", "vanakkam"
+    # =========================================================================
+    elif is_pure_greeting:
+        res_data = discover_ocean_data.invoke({"lat": lat, "lon": lon, "radius_km": 60})
+        layers_raw.extend(res_data.get("geojson_layers", []))
+
+        steps.append(AgentStep(
+            agent_name="Planning & Router Agent",
+            action="initialize_session",
+            result_summary=f"Welcome hand-shake established for {detected_loc} sector. Initialized collaborative marine intelligence swarm."
+        ))
+
+        text_response = (
+            f"👋 **Vanakkam & Greetings from ORCA!** 🐋\n"
+            f"*(ISRO SIH26176 — Marine Ecosystem Reasoning with Collaborative Agents)*\n\n"
+            f"🌟 **Project Motto**: *\"Bridging Space Science and Coastal Livelihoods — Empowering India's Blue Economy with Collaborative Marine Intelligence.\"*\n\n"
+            f"I am your collaborative autonomous marine intelligence swarm. I synthesize Earth Observation satellite data (Oceansat-3, INSAT-3D) with ocean forecasts, tide harmonics, and maritime boundaries into explainable decisions for fishermen, vessel operators, and coastal authorities.\n\n"
+            f"🧭 **What would you like to explore today?**\n"
+            f"• 🎣 **'Where is the nearest Potential Fishing Zone today?'**\n"
+            f"• 🌅 **'Is it safe to venture into the sea tomorrow morning?'**\n"
+            f"• 🌊 **'What are the tide, weather, and sea conditions near my fishing location?'**\n"
+            f"• ⚡ **'Are there any lightning or cyclone alerts in my area?'**\n"
+            f"• 🗺️ **'What is the safest route for my vessel?'**\n"
+            f"• 📉 **'Why has fish productivity declined in this coastal region?'**\n"
+            f"• 🚫 **'Which zones should be avoided due to MPAs or geofencing?'**\n\n"
+            f"📍 *Currently monitoring **{detected_loc}** ({basin}). You can speak or type in any of 11 Indian languages, or click a 1-click scenario chip on the left!*"
+        )
+
     # =========================================================================
     # Scenario 4: Lightning, Severe Weather & Cyclone Alerts
     # Example: "Are there any lightning or cyclone alerts in my area?"
     # =========================================================================
-    if any(w in msg for w in ['lightning', 'cyclone', 'storm', 'squall', 'thunderstorm', 'depression', 'gale']):
+    elif any(w in msg for w in ['lightning', 'cyclone', 'storm', 'squall', 'thunderstorm', 'depression', 'gale']):
         res = get_severe_weather_alerts.invoke({"lat": lat, "lon": lon})
         layers_raw.extend(res.get("geojson_layers", []))
         alert_level = "SEVERE"
@@ -471,12 +562,15 @@ async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
     unique_raw = list({l["id"]: l for l in layers_raw}.values())
 
     # Build live coastal telemetry
+    telemetry_loc = "Indian Coastal Shelf" if is_motto_or_capabilities else detected_loc
+    telemetry_tide = "All Coastal Stations Active" if is_motto_or_capabilities else "High Tide at 06:15 AM (2.8m)"
+
     telemetry = CoastalTelemetry(
-        location=detected_loc,
+        location=telemetry_loc,
         sea_state="State 3 (Slight/Moderate)" if alert_level == "NORMAL" else ("State 4 (Rough)" if alert_level == "CAUTION" else "State 5 (Very Rough)"),
         wave_height_m=1.4 if alert_level == "NORMAL" else (2.4 if alert_level == "CAUTION" else 3.8),
         wind_speed_kmh=18.5 if alert_level == "NORMAL" else (32.0 if alert_level == "CAUTION" else 55.0),
-        tide_summary="High Tide at 06:15 AM (2.8m)",
+        tide_summary=telemetry_tide,
         alert_level=alert_level
     )
 

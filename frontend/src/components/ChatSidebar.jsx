@@ -14,8 +14,9 @@ export default function ChatSidebar({
   const [inputText, setInputText] = useState('');
   const endOfMessagesRef = useRef(null);
 
-  // The 8 Official ISRO SIH26176 Core Problem Scenarios
+  // The Official ISRO SIH26176 Core Problem Scenarios & Mission
   const isroScenarios = [
+    { label: "🌟 Motto & What ORCA Does", query: "What is the motto of this project and what can you do for the people using this project?" },
     { label: "🐟 Nearest PFZ Today", query: "Where is the nearest Potential Fishing Zone today?" },
     { label: "⛵ Safe Tomorrow Morning?", query: "Is it safe to venture into the sea tomorrow morning?" },
     { label: "🌊 Tides & Sea Conditions", query: "What are the tide, weather, and sea conditions near my fishing location?" },
