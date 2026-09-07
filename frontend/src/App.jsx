@@ -1,10 +1,14 @@
 import { useState, useCallback } from 'react';
 import ChatSidebar from './components/ChatSidebar';
 import MapView from './components/MapView';
+import IndiaTerritoryMap from './components/IndiaTerritoryMap';
+import MarineQuizModal from './components/MarineQuizModal';
 
 export default function App() {
   const [showIntro, setShowIntro] = useState(true);
   const [vesselType, setVesselType] = useState('motorized_boat');
+  const [isTerritoryMapOpen, setIsTerritoryMapOpen] = useState(false);
+  const [isQuizOpen, setIsQuizOpen] = useState(false);
   const [telemetry, setTelemetry] = useState({
     location: "Indian Coastal Waters",
     sea_state: "State 3 (Slight / Moderate)",
@@ -93,6 +97,21 @@ export default function App() {
     }
   }, [language, showIntro, messages, vesselType]);
 
+  const handleSelectTerritory = useCallback((territory) => {
+    if (!territory) return;
+    setTelemetry((prev) => ({
+      ...prev,
+      location: territory.name,
+      alert_level: territory.alert_level || 'NORMAL'
+    }));
+    const query = territory.id === 'lakshadweep'
+      ? "Show Potential Fishing Zones, weather, and safe routes near Lakshadweep Islands"
+      : territory.id === 'andaman-nicobar'
+      ? "Show Potential Fishing Zones, cyclone alerts, and maritime conditions near Port Blair, Andaman & Nicobar Islands"
+      : `Provide oceanographic and fishing intelligence for ${territory.name}`;
+    handleSend(query);
+  }, [handleSend]);
+
   const alertClass = telemetry?.alert_level 
     ? `alert-${telemetry.alert_level.toLowerCase()}` 
     : 'alert-normal';
@@ -135,6 +154,8 @@ export default function App() {
         vesselType={vesselType}
         setVesselType={setVesselType}
         onSend={handleSend}
+        onOpenTerritoryMap={() => setIsTerritoryMapOpen(true)}
+        onOpenQuiz={() => setIsQuizOpen(true)}
       />
 
       <main className="main-content">
@@ -170,8 +191,41 @@ export default function App() {
           </div>
         )}
 
+        {/* Floating Quick-Access Tools */}
+        <div className="map-floating-actions">
+          <button 
+            type="button" 
+            className="floating-action-btn territory-btn"
+            onClick={() => setIsTerritoryMapOpen(true)}
+            title="Open India, Lakshadweep & Andaman Map"
+          >
+            🗺️ India &amp; Island Territories
+          </button>
+          <button 
+            type="button" 
+            className="floating-action-btn quiz-btn"
+            onClick={() => setIsQuizOpen(true)}
+            title="Open Marine Practice Quiz"
+          >
+            📚 Practice Quiz
+          </button>
+        </div>
+
         <MapView layers={layers} />
       </main>
+
+      {/* Interactive India, Lakshadweep (SW) & Andaman & Nicobar (SE) Territory Map */}
+      <IndiaTerritoryMap
+        isOpen={isTerritoryMapOpen}
+        onClose={() => setIsTerritoryMapOpen(false)}
+        onSelectTerritory={handleSelectTerritory}
+      />
+
+      {/* Marine Knowledge & Regulatory Assessment Quiz */}
+      <MarineQuizModal
+        isOpen={isQuizOpen}
+        onClose={() => setIsQuizOpen(false)}
+      />
     </div>
   );
 }
