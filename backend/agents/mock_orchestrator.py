@@ -185,9 +185,28 @@ async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
     ) and not any(k in msg for k in ['fish', 'weather', 'cyclone', 'tide', 'route', 'safe', 'decline', 'mpa', 'zone', 'port', 'near', 'sea', 'water', 'wave', 'wind', 'alert', 'lightning', 'who', 'what', 'how'])
 
     # =========================================================================
+    # Rule 0: Explicit Out-of-Scope (Temporal Trigger Override)
+    # =========================================================================
+    import re
+    OUT_OF_SCOPE_KEYWORDS = [
+        'eat', 'eating', 'food', 'diet', 'burger', 'pizza', 'sandwich', 'wear', 'wearing', 'clothes', 'clothing', 
+        'shirt', 'pants', 'shoes', 'antigravity', 'physics', 'math', 'movie', 'song', 'music', 'dance', 
+        'cricket', 'football', 'sports', 'politics', 'religion', 'joke', 'recipe', 'cook', 'cooking'
+    ]
+    is_explicitly_out_of_scope = any(re.search(r'\b' + kw + r'\b', msg) for kw in OUT_OF_SCOPE_KEYWORDS)
+
+    # =========================================================================
     # Rule 1: Identity Response
     # =========================================================================
-    if is_identity_query:
+    if is_explicitly_out_of_scope:
+        steps.append(AgentStep(
+            agent_name="Planning & Router Agent",
+            action="enforce_domain_boundary",
+            result_summary="Identified out-of-scope subject. Rejected query under strict domain boundaries."
+        ))
+        text_response = "I am ORCA, an ISRO marine intelligence assistant. That topic is beyond my scope. I can only assist with coastal weather, sea states, tides, and marine routes."
+
+    elif is_identity_query:
         steps.append(AgentStep(
             agent_name="Planning & Router Agent",
             action="identity_grounding",
@@ -617,14 +636,14 @@ async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
                 action="enforce_grounding_protocol",
                 result_summary="Query out of domain scope. Refused out-of-domain inquiry under ISRO SIH26176 grounding protocol."
             ))
-            text_response = "I'm sorry, but that is beyond my scope. I am specifically designed to answer questions related to the ORCA Marine Intelligence platform and marine ecosystems."
+            text_response = "I am ORCA, an ISRO marine intelligence assistant. That topic is beyond my scope. I can only assist with coastal weather, sea states, tides, and marine routes."
             layers_raw = []
 
     # Deduplicate layers by ID to avoid overlapping layers
     unique_raw = list({l["id"]: l for l in layers_raw}.values())
 
     # Build live coastal telemetry
-    is_out_of_scope = text_response.startswith("I'm sorry, but that is beyond my scope")
+    is_out_of_scope = "That topic is beyond my scope" in text_response
 
     if is_out_of_scope:
         telemetry_loc = "ORCA Platform (Standby)"
