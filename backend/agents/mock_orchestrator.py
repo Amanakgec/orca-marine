@@ -127,7 +127,7 @@ def _extract_location_from_history(history: list, current_msg: str) -> tuple:
                     return coords[0], coords[1], key.title()
 
     # Default if nowhere found
-    return 13.08, 80.27, "Chennai Coast"
+    return None, None, None
 
 async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
     msg = request.message.lower()
@@ -144,7 +144,7 @@ async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
                 break
 
     vessel_type = request.vessel_type or "motorized_boat"
-    basin = "Arabian Sea" if lon < 77.5 else "Bay of Bengal"
+    basin = "Arabian Sea" if (lon is not None and lon < 77.5) else "Bay of Bengal"
 
     layers_raw: list[dict] = []
     steps: list[AgentStep] = []
@@ -274,16 +274,14 @@ async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
     # Example: "hi", "hello", "namaste", "vanakkam"
     # =========================================================================
     elif is_pure_greeting:
-        res_data = discover_ocean_data.invoke({"lat": lat, "lon": lon, "radius_km": 60})
-        layers_raw.extend(res_data.get("geojson_layers", []))
-
+        loc_display = f"{detected_loc} sector" if detected_loc else "Indian Coastal Waters"
         steps.append(AgentStep(
             agent_name="Planning & Router Agent",
             action="initialize_session",
-            result_summary=f"Welcome hand-shake established for {detected_loc} sector. Initialized collaborative marine intelligence swarm."
+            result_summary=f"Welcome hand-shake established for {loc_display}. Initialized collaborative marine intelligence swarm."
         ))
 
-        text_response = (
+        greeting_text = (
             f"👋 **Vanakkam & Greetings from ORCA!** 🐋\n"
             f"*(ISRO SIH26176 — Marine Ecosystem Reasoning with Collaborative Agents)*\n\n"
             f"🌟 **Project Motto**: *\"Bridging Space Science and Coastal Livelihoods — Empowering India's Blue Economy with Collaborative Marine Intelligence.\"*\n\n"
@@ -296,8 +294,29 @@ async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
             f"• 🗺️ **'What is the safest route for my vessel?'**\n"
             f"• 📉 **'Why has fish productivity declined in this coastal region?'**\n"
             f"• 🚫 **'Which zones should be avoided due to MPAs or geofencing?'**\n\n"
-            f"📍 *Currently monitoring **{detected_loc}** ({basin}). You can speak or type in any of 11 Indian languages, or click a 1-click scenario chip on the left!*"
         )
+
+        if detected_loc:
+            res_data = discover_ocean_data.invoke({"lat": lat, "lon": lon, "radius_km": 60})
+            layers_raw.extend(res_data.get("geojson_layers", []))
+            text_response = greeting_text + f"📍 *Currently monitoring **{detected_loc}** ({basin}). You can speak or type in any of 11 Indian languages, or click a 1-click scenario chip on the left!*"
+        else:
+            text_response = greeting_text + f"📍 *To get started, please specify the coastal state or city you are interested in (e.g., Gujarat, Kerala, or Chennai).*"\
+    
+    # =========================================================================
+    # Rule X: STRICT Location Clarification for Operational Data
+    # =========================================================================
+    elif lat is None or lon is None or detected_loc is None:
+        steps.append(AgentStep(
+            agent_name="Planning & Router Agent",
+            action="request_location_context",
+            result_summary="Location missing for operational query. Prompting user for coastal state or city."
+        ))
+        
+        if "near me" in msg or "current location" in msg or "my location" in msg or "where i am" in msg:
+            text_response = "I cannot automatically detect your location right now. Which coastal state or city are you currently in?"
+        else:
+            text_response = "To provide an accurate live ocean intelligence brief, please specify the state or coastal city you are interested in (e.g., Gujarat, Kerala, or Chennai)."
 
     # =========================================================================
     # Scenario 4: Lightning, Severe Weather & Cyclone Alerts
@@ -654,6 +673,9 @@ async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
     elif is_motto_query:
         telemetry_loc = "Indian Coastal Shelf"
         telemetry_tide = "All Coastal Stations Active"
+    elif lat is None or lon is None or detected_loc is None:
+        telemetry_loc = "ORCA Platform (Standby)"
+        telemetry_tide = "Awaiting Location Input"
     else:
         telemetry_loc = detected_loc
         telemetry_tide = "High Tide at 06:15 AM (2.8m)"
