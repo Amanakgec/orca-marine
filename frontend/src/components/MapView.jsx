@@ -28,23 +28,36 @@ export default function MapView({ layers }) {
   // Initialize Map with Nautical Voyager (Vibrant Blue Ocean)
   useEffect(() => {
     if (mapRef.current) return;
+    if (!mapContainer.current) return;
 
-    const map = new maplibregl.Map({
-      container: mapContainer.current,
-      style: BASEMAP_STYLES.voyager.url,
-      center: [78.9629, 15.5937], // Centered across the Indian Peninsula
-      zoom: 5,
-      attributionControl: false
-    });
+    // Guard against environments where WebGL is unavailable
+    if (typeof maplibregl.supported === 'function' && !maplibregl.supported()) {
+      console.warn("MapLibre WebGL not supported in this client environment.");
+      return;
+    }
 
-    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
-    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+    let map = null;
+    try {
+      map = new maplibregl.Map({
+        container: mapContainer.current,
+        style: BASEMAP_STYLES.voyager.url,
+        center: [78.9629, 15.5937], // Centered across the Indian Peninsula
+        zoom: 5,
+        attributionControl: false
+      });
 
-    map.on('load', () => {
-      mapRef.current = map;
-      map.resize();
-      if (syncLayersRef.current) syncLayersRef.current();
-    });
+      map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'bottom-right');
+      map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+
+      map.on('load', () => {
+        mapRef.current = map;
+        map.resize();
+        if (syncLayersRef.current) syncLayersRef.current();
+      });
+    } catch (e) {
+      console.warn("MapLibre initialization exception:", e);
+      return;
+    }
 
     // ResizeObserver watches the map wrapper container DOM element for any dimension changes
     let resizeObserver = null;
@@ -82,7 +95,13 @@ export default function MapView({ layers }) {
       clearTimeout(t3);
       window.removeEventListener('resize', handleWindowResize);
       if (resizeObserver) resizeObserver.disconnect();
-      map.remove();
+      if (map) {
+        try {
+          map.remove();
+        } catch (e) {
+          // Ignore
+        }
+      }
       mapRef.current = null;
     };
   }, []);
@@ -263,12 +282,16 @@ export default function MapView({ layers }) {
   const switchBasemap = (styleKey) => {
     const map = mapRef.current;
     if (!map || styleKey === activeBasemap) return;
-    setActiveBasemap(styleKey);
-    map.setStyle(BASEMAP_STYLES[styleKey].url);
-    map.once('style.load', () => {
-      map.resize();
-      if (syncLayersRef.current) syncLayersRef.current();
-    });
+    try {
+      setActiveBasemap(styleKey);
+      map.setStyle(BASEMAP_STYLES[styleKey].url);
+      map.once('style.load', () => {
+        map.resize();
+        if (syncLayersRef.current) syncLayersRef.current();
+      });
+    } catch (err) {
+      console.warn("Basemap switch error:", err);
+    }
   };
 
   return (

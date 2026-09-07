@@ -44,7 +44,7 @@ export default function App() {
     setIsLoading(true);
 
     try {
-      const apiBase = import.meta.env.VITE_API_URL || '';
+      const apiBase = import.meta.env.VITE_API_URL || 'https://orca-marine-xu7i.onrender.com';
       // Send past 6 turns as conversation history for contextual multi-turn memory
       const historyPayload = messages.map(m => ({
         role: m.role,

@@ -37,7 +37,7 @@ export default function ChatMessage({ message, language = 'en' }) {
         language: language || 'en'
       });
 
-      const apiBase = import.meta.env.VITE_API_URL || '';
+      const apiBase = import.meta.env.VITE_API_URL || 'https://orca-marine-xu7i.onrender.com';
       const audio = new Audio(`${apiBase}/api/tts?${params.toString()}`);
       audioRef.current = audio;
 
@@ -68,7 +68,7 @@ export default function ChatMessage({ message, language = 'en' }) {
 
   // Basic markdown bold formatting
   const formatText = (text) => {
-    if (!text) return '';
+    if (!text || typeof text !== 'string') return '';
     const parts = text.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
@@ -80,10 +80,12 @@ export default function ChatMessage({ message, language = 'en' }) {
 
   const formattedTime = timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
+  const safeContent = typeof content === 'string' ? content : String(content || '');
+
   return (
     <div className={`message-wrapper ${isUser ? 'user' : 'assistant'}`}>
       <div className="message-bubble">
-        {content.split('\n').map((line, i) => (
+        {safeContent.split('\n').map((line, i) => (
           <div key={i} style={{ minHeight: '1.2em' }}>
             {formatText(line)}
           </div>
