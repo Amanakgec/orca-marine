@@ -20,6 +20,9 @@ from middleware.translation import TranslationMiddleware
 from agents.mock_orchestrator import mock_orchestrate
 from agents.graph import run_agent
 
+from api.ocean_routes import router as ocean_router
+from ingestion.scheduler import start_scheduler
+
 # Load environment variables
 load_dotenv()
 
@@ -33,6 +36,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(ocean_router)
 
 translator = TranslationMiddleware()
 
@@ -53,6 +58,8 @@ VOICE_MAP = {
 
 @app.on_event("startup")
 async def startup_event():
+    start_scheduler()
+    
     mock_mode = os.getenv("MOCK_MODE", "true").lower() == "true"
     api_key = os.getenv("GOOGLE_API_KEY", "")
     if mock_mode or not api_key:
