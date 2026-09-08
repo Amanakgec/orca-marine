@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import LayerPanel from './LayerPanel';
+import DraggablePanel from './DraggablePanel';
 
 const BASEMAP_STYLES = {
   voyager: {
@@ -299,26 +300,30 @@ export default function MapView({ layers }) {
       <div ref={mapContainer} className="map-wrapper" />
       
       {/* Basemap Style Switcher Control */}
-      <div className="basemap-selector">
-        {Object.entries(BASEMAP_STYLES).map(([key, item]) => (
-          <button
-            key={key}
-            type="button"
-            className={`basemap-btn ${activeBasemap === key ? 'active' : ''}`}
-            onClick={() => switchBasemap(key)}
-            title={item.label}
-          >
-            {item.label.split(' ')[0]} {item.label.split(' ')[1]}
-          </button>
-        ))}
-      </div>
+      <DraggablePanel id="basemap-selector" defaultPosition={{ x: window.innerWidth / 2 - 150, y: window.innerHeight - 60 }}>
+        <div className="basemap-selector">
+          {Object.entries(BASEMAP_STYLES).map(([key, item]) => (
+            <button
+              key={key}
+              type="button"
+              className={`basemap-btn ${activeBasemap === key ? 'active' : ''}`}
+              onClick={() => switchBasemap(key)}
+              title={item.label}
+            >
+              {item.label.split(' ')[0]} {item.label.split(' ')[1]}
+            </button>
+          ))}
+        </div>
+      </DraggablePanel>
 
       {layers.length > 0 && (
-        <LayerPanel 
-          layers={layers} 
-          visibleLayers={visibleLayers} 
-          onToggleLayer={toggleLayer} 
-        />
+        <DraggablePanel id="layer-panel" defaultPosition={{ x: window.innerWidth - 280, y: 80 }}>
+          <LayerPanel 
+            layers={layers} 
+            visibleLayers={visibleLayers} 
+            onToggleLayer={toggleLayer} 
+          />
+        </DraggablePanel>
       )}
     </div>
   );
