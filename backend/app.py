@@ -36,6 +36,19 @@ app.add_middleware(
 
 translator = TranslationMiddleware()
 
+@app.get("/download-pdf")
+async def download_pdf():
+    """Download or view the Layman Project Guide PDF over HTTP."""
+    pdf_path = os.path.join(os.path.dirname(__file__), "ORCA_Project_Layman_Guide.pdf")
+    if os.path.exists(pdf_path):
+        return FileResponse(
+            pdf_path,
+            media_type="application/pdf",
+            filename="ORCA_Project_Layman_Guide.pdf",
+            headers={"Content-Disposition": "inline; filename=ORCA_Project_Layman_Guide.pdf"}
+        )
+    raise HTTPException(status_code=404, detail="PDF file not found")
+
 # High-fidelity Microsoft Neural Indian Regional Voices (100% human sounding)
 VOICE_MAP = {
     'en': 'en-IN-NeerjaExpressiveNeural',
@@ -122,9 +135,9 @@ async def chat(request: ChatRequest):
             message=processed_message,
             location=request.location,
             language=target_lang,
-            vessel_type=request.vessel_type,
-            time_horizon=request.time_horizon,
-            conversation_history=request.conversation_history
+            vessel_type=getattr(request, 'vessel_type', 'motorized'),
+            time_horizon=getattr(request, 'time_horizon', 'now'),
+            conversation_history=getattr(request, 'conversation_history', [])
         )
 
         mock_mode = os.getenv("MOCK_MODE", "true").lower() == "true"
@@ -193,4 +206,3 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     print(f"[ORCA] Starting server on port {port}...")
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
-
