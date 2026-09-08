@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import ChatSidebar from './components/ChatSidebar';
 import MapView from './components/MapView';
-import DraggablePanel from './components/DraggablePanel';
 import IndiaTerritoryMap from './components/IndiaTerritoryMap';
 import MarineQuizModal from './components/MarineQuizModal';
 
@@ -162,59 +161,55 @@ export default function App() {
       <main className="main-content">
         {/* Coastal Telemetry Live Ribbon */}
         {telemetry && (
-          <DraggablePanel id="telemetry-banner" defaultPosition={{ x: 20, y: 16 }}>
-            <div className="coastal-telemetry-banner">
-              <div className="telemetry-item">
-                <span className="telemetry-label">📍 Coastal Sector</span>
-                <span className="telemetry-value">{telemetry.location}</span>
-              </div>
-              <div className="telemetry-item">
-                <span className="telemetry-label">🌊 Sea State</span>
-                <span className="telemetry-value">{telemetry.sea_state}</span>
-              </div>
-              <div className="telemetry-item">
-                <span className="telemetry-label">〰️ Significant Wave</span>
-                <span className="telemetry-value">{telemetry.wave_height_m}m</span>
-              </div>
-              <div className="telemetry-item">
-                <span className="telemetry-label">💨 Wind Velocity</span>
-                <span className="telemetry-value">{telemetry.wind_speed_kmh} km/h</span>
-              </div>
-              <div className="telemetry-item">
-                <span className="telemetry-label">🕒 Tide Schedule</span>
-                <span className="telemetry-value">{telemetry.tide_summary}</span>
-              </div>
-              <div className="telemetry-item">
-                <span className="telemetry-label">⚠️ Threat Level</span>
-                <span className={`alert-badge ${alertClass}`}>
-                  {telemetry.alert_level || 'NORMAL'}
-                </span>
-              </div>
+          <div className="coastal-telemetry-banner">
+            <div className="telemetry-item">
+              <span className="telemetry-label">📍 Coastal Sector</span>
+              <span className="telemetry-value">{telemetry.location}</span>
             </div>
-          </DraggablePanel>
+            <div className="telemetry-item">
+              <span className="telemetry-label">🌊 Sea State</span>
+              <span className="telemetry-value">{telemetry.sea_state}</span>
+            </div>
+            <div className="telemetry-item">
+              <span className="telemetry-label">〰️ Significant Wave</span>
+              <span className="telemetry-value">{telemetry.wave_height_m}m</span>
+            </div>
+            <div className="telemetry-item">
+              <span className="telemetry-label">💨 Wind Velocity</span>
+              <span className="telemetry-value">{telemetry.wind_speed_kmh} km/h</span>
+            </div>
+            <div className="telemetry-item">
+              <span className="telemetry-label">🕒 Tide Schedule</span>
+              <span className="telemetry-value">{telemetry.tide_summary}</span>
+            </div>
+            <div className="telemetry-item">
+              <span className="telemetry-label">⚠️ Threat Level</span>
+              <span className={`alert-badge ${alertClass}`}>
+                {telemetry.alert_level || 'NORMAL'}
+              </span>
+            </div>
+          </div>
         )}
 
         {/* Floating Quick-Access Tools */}
-        <DraggablePanel id="floating-actions" defaultPosition={{ x: window.innerWidth - 320, y: 16 }}>
-          <div className="map-floating-actions">
-            <button 
-              type="button" 
-              className="floating-action-btn territory-btn"
-              onClick={() => setIsTerritoryMapOpen(true)}
-              title="Open India, Lakshadweep & Andaman Map"
-            >
-              🗺️ India & Island Territories
-            </button>
-            <button 
-              type="button" 
-              className="floating-action-btn quiz-btn"
-              onClick={() => setIsQuizOpen(true)}
-              title="Open Marine Practice Quiz"
-            >
-              📚 Practice Quiz
-            </button>
-          </div>
-        </DraggablePanel>
+        <div className="map-floating-actions">
+          <button 
+            type="button" 
+            className="floating-action-btn territory-btn"
+            onClick={() => setIsTerritoryMapOpen(true)}
+            title="Open India, Lakshadweep & Andaman Map"
+          >
+            🗺️ India &amp; Island Territories
+          </button>
+          <button 
+            type="button" 
+            className="floating-action-btn quiz-btn"
+            onClick={() => setIsQuizOpen(true)}
+            title="Open Marine Practice Quiz"
+          >
+            📚 Practice Quiz
+          </button>
+        </div>
 
         <MapView layers={layers} />
       </main>
