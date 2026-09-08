@@ -127,7 +127,7 @@ def _extract_location_from_history(history: list, current_msg: str) -> tuple:
                     return coords[0], coords[1], key.title()
 
     # Default if nowhere found
-    return 13.08, 80.27, "Chennai Coast"
+    return None, None, None
 
 async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
     msg = request.message.lower()
@@ -144,7 +144,7 @@ async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
                 break
 
     vessel_type = request.vessel_type or "motorized_boat"
-    basin = "Arabian Sea" if lon < 77.5 else "Bay of Bengal"
+    basin = "Arabian Sea" if (lon is not None and lon < 77.5) else "Bay of Bengal"
 
     layers_raw: list[dict] = []
     steps: list[AgentStep] = []
@@ -153,13 +153,28 @@ async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
 
     greeting = f"Maritime Swarm Intelligence reporting for **{detected_loc}** ({basin}):"
 
-    # Check if the user is asking about Motto, Mission, Capabilities, or What ORCA does for people:
-    is_motto_or_capabilities = any(phrase in msg for phrase in [
-        'what can you do', 'what do you do', 'what can this do', 'what does this do',
-        'motto', 'mission', 'for the people', 'help the people', 'help fishermen',
-        'who are you', 'what is orca', 'what is this project', 'about orca', 'about this project',
-        'how can you help', 'how does this help', 'purpose of this project', 'purpose of orca',
-        'capabilities', 'benefits', 'why orca', 'why should', 'explain this project', 'features'
+    # =========================================================================
+    # CRITICAL GROUNDING PROTOCOL CHECKS (ISRO SIH26176)
+    # =========================================================================
+
+    # 1. Identity Inquiry: "Who are you?", "What are you?"
+    is_identity_query = any(phrase in msg for phrase in [
+        'who are you', 'what are you', 'who r u', 'what r u', 'who you are', 'what you are',
+        'tell me who you are', 'what is your name', 'identify yourself'
+    ])
+
+    # 2. Capabilities Inquiry: "What can you do?", "How can you help?"
+    is_capabilities_query = (
+        any(phrase in msg for phrase in [
+            'what can you do', 'how can you help', 'what do you do', 'what can this do', 'what does this do',
+            'how do you help', 'how can i use you', 'what are your capabilities', 'what help can you provide'
+        ]) and not any(k in msg for k in ['motto', 'mission', 'for the people', 'help the people', 'fishermen'])
+    )
+
+    # 3. Motto & Core Mission Inquiry: "What is the motto?", "What can you do for the people using this project?"
+    is_motto_query = any(phrase in msg for phrase in [
+        'motto', 'mission', 'for the people', 'help the people', 'what is orca', 'about orca',
+        'about this project', 'purpose of this project', 'purpose of orca', 'why orca'
     ])
 
     # Check if the user is giving a friendly greeting without an operational question:
@@ -167,13 +182,53 @@ async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
     is_pure_greeting = (
         msg.strip() in greeting_tokens or 
         any(msg.strip().startswith(g + " ") or msg.strip().startswith(g + "!") or msg.strip().startswith(g + ",") for g in greeting_tokens)
-    ) and not any(k in msg for k in ['fish', 'weather', 'cyclone', 'tide', 'route', 'safe', 'decline', 'mpa', 'zone', 'port', 'near', 'sea', 'water', 'wave', 'wind', 'alert', 'lightning'])
+    ) and not any(k in msg for k in ['fish', 'weather', 'cyclone', 'tide', 'route', 'safe', 'decline', 'mpa', 'zone', 'port', 'near', 'sea', 'water', 'wave', 'wind', 'alert', 'lightning', 'who', 'what', 'how'])
 
     # =========================================================================
-    # High-Priority: Motto, Mission & Multi-Stakeholder Value Proposition
-    # Example: "hi what can you do?", "what can you do for the people using this project?", "what is the motto of this project?"
+    # Rule 0: Explicit Out-of-Scope (Temporal Trigger Override)
     # =========================================================================
-    if is_motto_or_capabilities:
+    import re
+    OUT_OF_SCOPE_KEYWORDS = [
+        'eat', 'eating', 'food', 'diet', 'burger', 'pizza', 'sandwich', 'wear', 'wearing', 'clothes', 'clothing', 
+        'shirt', 'pants', 'shoes', 'antigravity', 'physics', 'math', 'movie', 'song', 'music', 'dance', 
+        'cricket', 'football', 'sports', 'politics', 'religion', 'joke', 'recipe', 'cook', 'cooking'
+    ]
+    is_explicitly_out_of_scope = any(re.search(r'\b' + kw + r'\b', msg) for kw in OUT_OF_SCOPE_KEYWORDS)
+
+    # =========================================================================
+    # Rule 1: Identity Response
+    # =========================================================================
+    if is_explicitly_out_of_scope:
+        steps.append(AgentStep(
+            agent_name="Planning & Router Agent",
+            action="enforce_domain_boundary",
+            result_summary="Identified out-of-scope subject. Rejected query under strict domain boundaries."
+        ))
+        text_response = "I am ORCA, an ISRO marine intelligence assistant. That topic is beyond my scope. I can only assist with coastal weather, sea states, tides, and marine routes."
+
+    elif is_identity_query:
+        steps.append(AgentStep(
+            agent_name="Planning & Router Agent",
+            action="identity_grounding",
+            result_summary="Handled identity verification inquiry under ISRO SIH26176 Grounding Protocol"
+        ))
+        text_response = "I am the AI Assistant for ORCA Marine Intelligence, an intelligent platform developed for the ISRO SIH26176 project."
+
+    # =========================================================================
+    # Rule 1: Capabilities Response
+    # =========================================================================
+    elif is_capabilities_query:
+        steps.append(AgentStep(
+            agent_name="Planning & Router Agent",
+            action="capabilities_grounding",
+            result_summary="Reported platform navigation, telemetry, and marine ecosystem capabilities under Grounding Protocol"
+        ))
+        text_response = "I can help you navigate the ORCA platform, understand ocean swarm telemetry, and answer questions about marine ecosystems, our collaborative agents, and this website's features."
+
+    # =========================================================================
+    # Project Motto & Multi-Stakeholder Value Proposition
+    # =========================================================================
+    elif is_motto_query:
         # Load illustrative MPA, boundary, and Potential Fishing Zone layers for a rich visual overview
         res_mpa = audit_restricted_zones.invoke({"lat": 13.08, "lon": 80.27})
         res_pfz = find_potential_fishing_zones.invoke({"lat_min": 11.0, "lon_min": 79.0, "lat_max": 14.5, "lon_max": 81.5})
@@ -219,16 +274,14 @@ async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
     # Example: "hi", "hello", "namaste", "vanakkam"
     # =========================================================================
     elif is_pure_greeting:
-        res_data = discover_ocean_data.invoke({"lat": lat, "lon": lon, "radius_km": 60})
-        layers_raw.extend(res_data.get("geojson_layers", []))
-
+        loc_display = f"{detected_loc} sector" if detected_loc else "Indian Coastal Waters"
         steps.append(AgentStep(
             agent_name="Planning & Router Agent",
             action="initialize_session",
-            result_summary=f"Welcome hand-shake established for {detected_loc} sector. Initialized collaborative marine intelligence swarm."
+            result_summary=f"Welcome hand-shake established for {loc_display}. Initialized collaborative marine intelligence swarm."
         ))
 
-        text_response = (
+        greeting_text = (
             f"👋 **Vanakkam & Greetings from ORCA!** 🐋\n"
             f"*(ISRO SIH26176 — Marine Ecosystem Reasoning with Collaborative Agents)*\n\n"
             f"🌟 **Project Motto**: *\"Bridging Space Science and Coastal Livelihoods — Empowering India's Blue Economy with Collaborative Marine Intelligence.\"*\n\n"
@@ -241,8 +294,29 @@ async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
             f"• 🗺️ **'What is the safest route for my vessel?'**\n"
             f"• 📉 **'Why has fish productivity declined in this coastal region?'**\n"
             f"• 🚫 **'Which zones should be avoided due to MPAs or geofencing?'**\n\n"
-            f"📍 *Currently monitoring **{detected_loc}** ({basin}). You can speak or type in any of 11 Indian languages, or click a 1-click scenario chip on the left!*"
         )
+
+        if detected_loc:
+            res_data = discover_ocean_data.invoke({"lat": lat, "lon": lon, "radius_km": 60})
+            layers_raw.extend(res_data.get("geojson_layers", []))
+            text_response = greeting_text + f"📍 *Currently monitoring **{detected_loc}** ({basin}). You can speak or type in any of 11 Indian languages, or click a 1-click scenario chip on the left!*"
+        else:
+            text_response = greeting_text + f"📍 *To get started, please specify the coastal state or city you are interested in (e.g., Gujarat, Kerala, or Chennai).*"\
+    
+    # =========================================================================
+    # Rule X: STRICT Location Clarification for Operational Data
+    # =========================================================================
+    elif lat is None or lon is None or detected_loc is None:
+        steps.append(AgentStep(
+            agent_name="Planning & Router Agent",
+            action="request_location_context",
+            result_summary="Location missing for operational query. Prompting user for coastal state or city."
+        ))
+        
+        if "near me" in msg or "current location" in msg or "my location" in msg or "where i am" in msg:
+            text_response = "I cannot automatically detect your location right now. Which coastal state or city are you currently in?"
+        else:
+            text_response = "To provide an accurate live ocean intelligence brief, please specify the state or coastal city you are interested in (e.g., Gujarat, Kerala, or Chennai)."
 
     # =========================================================================
     # Scenario 4: Lightning, Severe Weather & Cyclone Alerts
@@ -524,46 +598,87 @@ async def mock_orchestrate(request: ChatRequest) -> ChatResponse:
             text_response = f"Identified productive fishing grounds within your coordinates. Check the green polygons on your chart."
 
     # =========================================================================
-    # Fallback / General Safety & Ocean Assessment
+    # Fallback: In-Domain Marine Queries vs. Out-of-Scope Fallback
     # =========================================================================
     else:
-        res_data = discover_ocean_data.invoke({"lat": lat, "lon": lon, "radius_km": 70})
-        res_safe = assess_safety_risk.invoke({"lat": lat, "lon": lon, "vessel_type": vessel_type})
+        # Check if the query is strictly within the marine/ocean domain or mentions coastal waters/locations
+        MARINE_DOMAIN_TERMS = [
+            'orca', 'isro', 'sih', 'ocean', 'sea', 'water', 'marine', 'coastal', 'coast', 'shelf', 'basin',
+            'sst', 'temperature', 'chlorophyll', 'plume', 'thermal', 'upwelling', 'current', 'salinity',
+            'bathymetry', 'depth', 'heatwave', 'hypoxia', 'algae', 'bloom', 'coral', 'reef', 'mangrove',
+            'fish', 'fishing', 'pfz', 'catch', 'species', 'tuna', 'sardine', 'mackerel', 'pelagic',
+            'trawler', 'vallam', 'boat', 'vessel', 'craft', 'ship', 'weather', 'wind', 'wave', 'swell',
+            'chop', 'tide', 'cyclone', 'storm', 'squall', 'lightning', 'monsoon', 'douglas', 'sea state',
+            'safety', 'safe', 'hazard', 'route', 'corridor', 'navic', 'ais', 'imbl', 'boundary', 'mpa',
+            'sanctuary', 'geofence', 'geofencing', 'port', 'harbor', 'island', 'archipelago',
+            'arabian sea', 'bay of bengal', 'andaman sea', 'indian ocean', 'andaman', 'nicobar', 'lakshadweep'
+        ]
+        is_in_domain = any(t in msg for t in MARINE_DOMAIN_TERMS) or any(loc in msg for loc in COASTAL_LOCATIONS.keys())
 
-        layers_raw.extend(res_data.get("geojson_layers", []))
-        layers_raw.extend(res_safe.get("geojson_layers", []))
+        if is_in_domain:
+            res_data = discover_ocean_data.invoke({"lat": lat, "lon": lon, "radius_km": 70})
+            res_safe = assess_safety_risk.invoke({"lat": lat, "lon": lon, "vessel_type": vessel_type})
 
-        steps.append(AgentStep(
-            agent_name="Data Discovery Agent",
-            action="gather_coastal_telemetry",
-            result_summary=f"Retrieved SST ({res_data['sst_summary']['avg']}°C), Chlorophyll, and Weather for {detected_loc}"
-        ))
-        steps.append(AgentStep(
-            agent_name="Synthesis Agent",
-            action="generate_personalized_brief",
-            result_summary=f"Compiled multi-source marine brief. Safety index: {res_safe['risk_level'].upper()}"
-        ))
+            layers_raw.extend(res_data.get("geojson_layers", []))
+            layers_raw.extend(res_safe.get("geojson_layers", []))
 
-        text_response = (
-            f"🌊 **LIVE OCEAN INTELLIGENCE BRIEF — {detected_loc.upper()}**\n\n"
-            f"• **Sea Surface Temperature**: Average **{res_data['sst_summary']['avg']}°C** (Range: {res_data['sst_summary']['min']}°C - {res_data['sst_summary']['max']}°C)\n"
-            f"• **Productivity**: {res_data['chlorophyll_summary']}\n"
-            f"• **Safety Assessment**: **{res_safe['risk_level'].upper()}** ({res_safe['sea_state']})\n"
-            f"• **Maritime Boundary Proximity**: {res_safe['imbl_distance_nm']} NM from {res_safe['nearest_boundary']}\n\n"
-            f"💬 *Try asking about:*\n"
-            f"• 'Where is the nearest Potential Fishing Zone today?'\n"
-            f"• 'Is it safe to venture into the sea tomorrow morning?'\n"
-            f"• 'What are the tide, weather, and sea conditions near my fishing location?'\n"
-            f"• 'Are there any lightning or cyclone alerts in my area?'\n"
-            f"• 'Why has fish productivity declined in this coastal region?'"
-        )
+            steps.append(AgentStep(
+                agent_name="Data Discovery Agent",
+                action="gather_coastal_telemetry",
+                result_summary=f"Retrieved SST ({res_data['sst_summary']['avg']}°C), Chlorophyll, and Weather for {detected_loc}"
+            ))
+            steps.append(AgentStep(
+                agent_name="Synthesis Agent",
+                action="generate_personalized_brief",
+                result_summary=f"Compiled multi-source marine brief. Safety index: {res_safe['risk_level'].upper()}"
+            ))
+
+            text_response = (
+                f"🌊 **LIVE OCEAN INTELLIGENCE BRIEF — {detected_loc.upper()}**\n\n"
+                f"• **Sea Surface Temperature**: Average **{res_data['sst_summary']['avg']}°C** (Range: {res_data['sst_summary']['min']}°C - {res_data['sst_summary']['max']}°C)\n"
+                f"• **Productivity**: {res_data['chlorophyll_summary']}\n"
+                f"• **Safety Assessment**: **{res_safe['risk_level'].upper()}** ({res_safe['sea_state']})\n"
+                f"• **Maritime Boundary Proximity**: {res_safe['imbl_distance_nm']} NM from {res_safe['nearest_boundary']}\n\n"
+                f"💬 *Try asking about:*\n"
+                f"• 'Where is the nearest Potential Fishing Zone today?'\n"
+                f"• 'Is it safe to venture into the sea tomorrow morning?'\n"
+                f"• 'What are the tide, weather, and sea conditions near my fishing location?'\n"
+                f"• 'Are there any lightning or cyclone alerts in my area?'\n"
+                f"• 'Why has fish productivity declined in this coastal region?'"
+            )
+        else:
+            # Enforce Grounding Protocol Rule 2 & 3:
+            # Strictly reject out-of-scope, irrelevant, nonsensical queries, general knowledge, etc.
+            # Do NOT hallucinate, generate random map coordinates, or return arbitrary locations.
+            steps.append(AgentStep(
+                agent_name="Planning & Router Agent",
+                action="enforce_grounding_protocol",
+                result_summary="Query out of domain scope. Refused out-of-domain inquiry under ISRO SIH26176 grounding protocol."
+            ))
+            text_response = "I am ORCA, an ISRO marine intelligence assistant. That topic is beyond my scope. I can only assist with coastal weather, sea states, tides, and marine routes."
+            layers_raw = []
 
     # Deduplicate layers by ID to avoid overlapping layers
     unique_raw = list({l["id"]: l for l in layers_raw}.values())
 
     # Build live coastal telemetry
-    telemetry_loc = "Indian Coastal Shelf" if is_motto_or_capabilities else detected_loc
-    telemetry_tide = "All Coastal Stations Active" if is_motto_or_capabilities else "High Tide at 06:15 AM (2.8m)"
+    is_out_of_scope = "That topic is beyond my scope" in text_response
+
+    if is_out_of_scope:
+        telemetry_loc = "ORCA Platform (Standby)"
+        telemetry_tide = "Monitoring Coastal Waters"
+    elif is_identity_query or is_capabilities_query:
+        telemetry_loc = "Indian Coastal Waters"
+        telemetry_tide = "All Coastal Stations Active"
+    elif is_motto_query:
+        telemetry_loc = "Indian Coastal Shelf"
+        telemetry_tide = "All Coastal Stations Active"
+    elif lat is None or lon is None or detected_loc is None:
+        telemetry_loc = "ORCA Platform (Standby)"
+        telemetry_tide = "Awaiting Location Input"
+    else:
+        telemetry_loc = detected_loc
+        telemetry_tide = "High Tide at 06:15 AM (2.8m)"
 
     telemetry = CoastalTelemetry(
         location=telemetry_loc,

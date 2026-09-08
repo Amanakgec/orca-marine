@@ -9,7 +9,9 @@ export default function ChatSidebar({
   setLanguage, 
   vesselType = 'motorized_boat', 
   setVesselType, 
-  onSend 
+  onSend,
+  onOpenTerritoryMap,
+  onOpenQuiz
 }) {
   const [inputText, setInputText] = useState('');
   const endOfMessagesRef = useRef(null);
@@ -17,6 +19,8 @@ export default function ChatSidebar({
   // The Official ISRO SIH26176 Core Problem Scenarios & Mission
   const isroScenarios = [
     { label: "🌟 Motto & What ORCA Does", query: "What is the motto of this project and what can you do for the people using this project?" },
+    { label: "🏝️ Lakshadweep Tuna Grounds", query: "Show Potential Fishing Zones, weather, and safe routes near Lakshadweep Islands" },
+    { label: "🌴 Andaman & Nicobar EEZ", query: "Show Potential Fishing Zones, cyclone alerts, and maritime conditions near Port Blair, Andaman & Nicobar Islands" },
     { label: "🐟 Nearest PFZ Today", query: "Where is the nearest Potential Fishing Zone today?" },
     { label: "⛵ Safe Tomorrow Morning?", query: "Is it safe to venture into the sea tomorrow morning?" },
     { label: "🌊 Tides & Sea Conditions", query: "What are the tide, weather, and sea conditions near my fishing location?" },
@@ -85,6 +89,26 @@ export default function ChatSidebar({
             <option value="mechanized_trawler">🚢 Deep-Sea Trawler</option>
           </select>
         </div>
+      </div>
+
+      {/* Territory Navigator & Marine Quiz Launcher Bar */}
+      <div className="sidebar-tools-row">
+        <button
+          type="button"
+          className="sidebar-tool-btn"
+          onClick={onOpenTerritoryMap}
+          title="Interactive Map of India, Lakshadweep (SW) & Andaman & Nicobar (SE)"
+        >
+          🗺️ India &amp; Islands
+        </button>
+        <button
+          type="button"
+          className="sidebar-tool-btn"
+          onClick={onOpenQuiz}
+          title="Marine Knowledge &amp; Regulatory Practice Assessment"
+        >
+          📚 Practice Quiz
+        </button>
       </div>
 
       <div className="chat-messages">
