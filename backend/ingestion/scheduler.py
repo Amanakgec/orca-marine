@@ -9,10 +9,7 @@ def ingest_pfz_job():
     try:
         logger.info("Starting scheduled PFZ ingestion...")
         gdf = bhuvan.fetch_pfz_data()
-        # In a real environment, persist to PostGIS using geopandas:
-        # engine = get_db_engine()
-        # gdf.to_postgis('pfz_zones', engine, if_exists='append', index=False)
-        logger.info(f"Ingested {len(gdf)} PFZ records.")
+        logger.info(f"Ingested {len(gdf.get('features', []))} PFZ records.")
     except Exception as e:
         logger.error(f"Failed to ingest PFZ data: {e}")
 
@@ -20,7 +17,7 @@ def ingest_sst_job():
     try:
         logger.info("Starting scheduled SST ingestion...")
         gdf = mosdac.fetch_sst_data()
-        logger.info(f"Ingested {len(gdf)} SST records.")
+        logger.info(f"Ingested {len(gdf.get('features', []))} SST records.")
     except Exception as e:
         logger.error(f"Failed to ingest SST data: {e}")
 
