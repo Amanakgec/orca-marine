@@ -19,6 +19,7 @@ from models import ChatRequest, ChatResponse
 from middleware.translation import TranslationMiddleware
 from agents.mock_orchestrator import mock_orchestrate
 from agents.graph import run_agent
+from agents.groq_agent import run_groq_agent
 
 from api.ocean_routes import router as ocean_router
 from ingestion.scheduler import start_scheduler
@@ -26,7 +27,7 @@ from ingestion.scheduler import start_scheduler
 # Load environment variables
 load_dotenv()
 
-app = FastAPI(title='ORCA Marine Intelligence API', version='1.2.0')
+app = FastAPI(title='ORCA Marine Intelligence API', version='1.3.0')
 
 # Configure CORS
 app.add_middleware(
@@ -40,6 +41,19 @@ app.add_middleware(
 app.include_router(ocean_router)
 
 translator = TranslationMiddleware()
+
+@app.get("/download-pdf")
+async def download_pdf():
+    """Download or view the Layman Project Guide PDF over HTTP."""
+    pdf_path = os.path.join(os.path.dirname(__file__), "ORCA_Project_Layman_Guide.pdf")
+    if os.path.exists(pdf_path):
+        return FileResponse(
+            pdf_path,
+            media_type="application/pdf",
+            filename="ORCA_Project_Layman_Guide.pdf",
+            headers={"Content-Disposition": "inline; filename=ORCA_Project_Layman_Guide.pdf"}
+        )
+    raise HTTPException(status_code=404, detail="PDF file not found")
 
 # High-fidelity Microsoft Neural Indian Regional Voices (100% human sounding)
 VOICE_MAP = {
@@ -58,42 +72,48 @@ VOICE_MAP = {
 
 @app.on_event("startup")
 async def startup_event():
+ main
     start_scheduler()
     
+=======
+    groq_key = os.getenv("GROQ_API_KEY", "")
+    google_key = os.getenv("GOOGLE_API_KEY", "")
+main
     mock_mode = os.getenv("MOCK_MODE", "true").lower() == "true"
-    api_key = os.getenv("GOOGLE_API_KEY", "")
-    if mock_mode or not api_key:
-        print("[ORCA] Backend started in MOCK & COASTAL INTEL mode with Neural TTS.")
+
+    if groq_key:
+        print("[ORCA] Backend active: Groq LPU Ultra-Fast Inference (<150ms) + Neural TTS.")
+    elif google_key and not mock_mode:
+        print("[ORCA] Backend active: Gemini LLM Mode + Neural TTS.")
     else:
-        print("[ORCA] Backend started in LLM mode with Gemini & Neural TTS.")
+        print("[ORCA] Backend active: High-Speed Coastal Orchestrator + Neural TTS.")
 
 @app.get("/api/health")
 async def health_check():
+    groq_key = os.getenv("GROQ_API_KEY", "")
+    google_key = os.getenv("GOOGLE_API_KEY", "")
     mock_mode = os.getenv("MOCK_MODE", "true").lower() == "true"
-    api_key = os.getenv("GOOGLE_API_KEY", "")
-    mode = 'mock' if mock_mode or not api_key else 'llm'
+
+    engine = "groq_lpu" if groq_key else ("gemini_llm" if (google_key and not mock_mode) else "coastal_intel")
+
     return {
         "status": "healthy",
-        "mode": mode,
+        "engine": engine,
         "supported_languages": list(translator.SUPPORTED_LANGUAGES.keys()),
         "neural_tts_enabled": True,
-        "version": "1.2.0"
+        "version": "1.3.0"
     }
 
 @app.get("/api/tts")
 async def get_neural_tts(text: str, language: str = 'en'):
     """Generate realistic, human-like neural speech for regional Indian coastal languages."""
     try:
-        # Strip markdown syntax and clean spacing
         clean_text = re.sub(r'[*_#`•]', ' ', text)
         clean_text = re.sub(r'\s+', ' ', clean_text).strip()
         if not clean_text:
             raise HTTPException(status_code=400, detail="Empty text provided")
 
-        # Select natural regional neural voice
         voice = VOICE_MAP.get(language, 'en-IN-NeerjaExpressiveNeural')
-
-        # Limit to first 600 characters for snappy speech responses
         truncated_text = clean_text[:600]
 
         communicate = edge_tts.Communicate(truncated_text, voice)
@@ -114,13 +134,10 @@ async def get_neural_tts(text: str, language: str = 'en'):
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     try:
-        # Step 1: Detect language of input message
+        # Step 1: Language Detection & Translation to English
         detected_lang = translator.detect_language(request.message)
-
-        # Target language priority: user selected dropdown -> detected from message -> English default
         target_lang = request.language if (request.language and request.language != 'en') else detected_lang
 
-        # Translate input message to English for agent reasoning if typed in an Indic script
         processed_message = request.message
         if detected_lang != 'en':
             processed_message = await translator.translate_to_english(request.message, detected_lang)
@@ -129,21 +146,24 @@ async def chat(request: ChatRequest):
             message=processed_message,
             location=request.location,
             language=target_lang,
-            vessel_type=request.vessel_type,
-            time_horizon=request.time_horizon,
-            conversation_history=request.conversation_history
+            vessel_type=getattr(request, 'vessel_type', 'motorized'),
+            time_horizon=getattr(request, 'time_horizon', 'now'),
+            conversation_history=getattr(request, 'conversation_history', [])
         )
 
+        groq_key = os.getenv("GROQ_API_KEY", "")
+        google_key = os.getenv("GOOGLE_API_KEY", "")
         mock_mode = os.getenv("MOCK_MODE", "true").lower() == "true"
-        api_key = os.getenv("GOOGLE_API_KEY", "")
 
-        # Step 2: Route to LangGraph LLM agent or Mock Orchestrator
-        if mock_mode or not api_key:
-            response = await mock_orchestrate(internal_request)
-        else:
+        # Step 2: Route through Groq LPU (Ultra-Fast <150ms) -> Gemini -> Coastal Orchestrator
+        if groq_key:
+            response = await run_groq_agent(internal_request)
+        elif google_key and not mock_mode:
             response = await run_agent(internal_request)
+        else:
+            response = await mock_orchestrate(internal_request)
 
-        # Step 3: Translate response text to the user's requested regional language
+        # Step 3: Translate response text to requested Indic language
         if target_lang and target_lang != 'en':
             translated_text = await translator.translate_from_english(response.text_response, target_lang)
             if translated_text:
@@ -154,12 +174,9 @@ async def chat(request: ChatRequest):
         print(f"[Error in /api/chat]: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# ==========================================
-# Frontend Static Asset Serving (Production)
-# ==========================================
+# Static Asset Serving for production
 FRONTEND_DIST = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
 if not os.path.exists(FRONTEND_DIST):
-    # Fallback to local dist if packaged in backend folder
     alt_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "dist"))
     if os.path.exists(alt_dist):
         FRONTEND_DIST = alt_dist
@@ -175,7 +192,7 @@ async def serve_root():
         "service": "ORCA Marine Intelligence API",
         "health": "/api/health",
         "docs": "/docs",
-        "message": "Backend is running! Point your Vercel frontend VITE_API_URL to this domain."
+        "message": "Backend is running!"
     }
 
 if os.path.exists(FRONTEND_DIST):
@@ -200,4 +217,3 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     print(f"[ORCA] Starting server on port {port}...")
     uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
-

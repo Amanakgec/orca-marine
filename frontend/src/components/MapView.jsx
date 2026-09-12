@@ -3,6 +3,10 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import LayerPanel from './LayerPanel';
 
+// Official India boundary GeoJSON sources (includes complete J&K, Ladakh, Lakshadweep, A&N Islands)
+const INDIA_COMPOSITE_URL = 'https://raw.githubusercontent.com/datameet/maps/master/Country/india-composite.geojson';
+const INDIA_STATES_URL = 'https://raw.githubusercontent.com/geohacker/india/master/state/india_state.geojson';
+
 const BASEMAP_STYLES = {
   voyager: {
     label: '🌊 Nautical Blue Ocean',
@@ -18,19 +22,207 @@ const BASEMAP_STYLES = {
   }
 };
 
+// Full India view bounds: includes Aksai Chin (north), Lakshadweep (west/south), Andaman (east/south)
+const INDIA_BOUNDS = [[67.0, 5.5], [97.5, 37.5]];
+
 export default function MapView({ layers }) {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const [visibleLayers, setVisibleLayers] = useState(new Set());
   const [activeBasemap, setActiveBasemap] = useState('voyager');
   const syncLayersRef = useRef(null);
+  const indiaLayersAdded = useRef(false);
 
-  // Initialize Map with Nautical Voyager (Vibrant Blue Ocean)
+  // Add official India boundary & state layers on the map
+  const addIndiaOverlay = useCallback((map) => {
+    if (indiaLayersAdded.current) return;
+    indiaLayersAdded.current = true;
+
+    // 1. National Boundary (outer outline, thick, official saffron-orange)
+    if (!map.getSource('india-boundary')) {
+      map.addSource('india-boundary', {
+        type: 'geojson',
+        data: INDIA_COMPOSITE_URL
+      });
+
+      // Filled highlight of Indian territory (very subtle tint)
+      map.addLayer({
+        id: 'india-territory-fill',
+        type: 'fill',
+        source: 'india-boundary',
+        paint: {
+          'fill-color': '#FF9933',
+          'fill-opacity': 0.04
+        }
+      });
+
+      // National boundary line (thick, official saffron)
+      map.addLayer({
+        id: 'india-boundary-line',
+        type: 'line',
+        source: 'india-boundary',
+        paint: {
+          'line-color': '#1a1a2e',
+          'line-width': 2.5,
+          'line-opacity': 0.85
+        }
+      });
+    }
+
+    // 2. State & UT internal boundaries (thin gray lines like the reference map)
+    if (!map.getSource('india-states')) {
+      map.addSource('india-states', {
+        type: 'geojson',
+        data: INDIA_STATES_URL
+      });
+
+      // State boundary lines (thin, dark gray)
+      map.addLayer({
+        id: 'india-states-line',
+        type: 'line',
+        source: 'india-states',
+        paint: {
+          'line-color': '#4a4a4a',
+          'line-width': 1.0,
+          'line-opacity': 0.6
+        }
+      });
+
+      // State name labels
+      map.addLayer({
+        id: 'india-states-label',
+        type: 'symbol',
+        source: 'india-states',
+        layout: {
+          'text-field': ['get', 'NAME_1'],
+          'text-size': 9,
+          'text-font': ['Open Sans Regular', 'Arial Unicode MS Regular'],
+          'text-anchor': 'center',
+          'text-max-width': 6,
+          'text-allow-overlap': false,
+          'text-ignore-placement': false,
+          'visibility': 'visible'
+        },
+        paint: {
+          'text-color': '#555555',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1,
+          'text-opacity': 0.7
+        },
+        minzoom: 4.5
+      });
+    }
+
+    // 3. Add Lakshadweep marker annotation
+    if (!map.getSource('lakshadweep-label')) {
+      map.addSource('lakshadweep-label', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [72.64, 10.57] },
+              properties: { name: 'Lakshadweep\n(India)' }
+            }
+          ]
+        }
+      });
+      map.addLayer({
+        id: 'lakshadweep-label',
+        type: 'symbol',
+        source: 'lakshadweep-label',
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-size': 10,
+          'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+          'text-anchor': 'center'
+        },
+        paint: {
+          'text-color': '#0369a1',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.2
+        },
+        minzoom: 4
+      });
+    }
+
+    // 4. Add Andaman & Nicobar marker annotation
+    if (!map.getSource('andaman-label')) {
+      map.addSource('andaman-label', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [92.72, 11.74] },
+              properties: { name: 'Andaman &\nNicobar Islands\n(India)' }
+            }
+          ]
+        }
+      });
+      map.addLayer({
+        id: 'andaman-label',
+        type: 'symbol',
+        source: 'andaman-label',
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-size': 10,
+          'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+          'text-anchor': 'center'
+        },
+        paint: {
+          'text-color': '#0369a1',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 1.2
+        },
+        minzoom: 4
+      });
+    }
+
+    // 5. "INDIA" country title label (top center on map)
+    if (!map.getSource('india-title-label')) {
+      map.addSource('india-title-label', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [79.0, 23.5] },
+              properties: { name: 'INDIA' }
+            }
+          ]
+        }
+      });
+      map.addLayer({
+        id: 'india-title-label',
+        type: 'symbol',
+        source: 'india-title-label',
+        layout: {
+          'text-field': ['get', 'name'],
+          'text-size': 16,
+          'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+          'text-anchor': 'center',
+          'text-letter-spacing': 0.3
+        },
+        paint: {
+          'text-color': '#1a1a2e',
+          'text-halo-color': '#ffffff',
+          'text-halo-width': 2
+        },
+        minzoom: 3,
+        maxzoom: 6
+      });
+    }
+  }, []);
+
+  // Initialize Map
   useEffect(() => {
     if (mapRef.current) return;
     if (!mapContainer.current) return;
 
-    // Guard against environments where WebGL is unavailable
     if (typeof maplibregl.supported === 'function' && !maplibregl.supported()) {
       console.warn("MapLibre WebGL not supported in this client environment.");
       return;
@@ -41,8 +233,9 @@ export default function MapView({ layers }) {
       map = new maplibregl.Map({
         container: mapContainer.current,
         style: BASEMAP_STYLES.voyager.url,
-        center: [78.9629, 15.5937], // Centered across the Indian Peninsula
-        zoom: 5,
+        center: [78.9629, 20.5937],
+        zoom: 4.2,
+        maxBounds: [[60, 0], [100, 40]],
         attributionControl: false
       });
 
@@ -52,6 +245,10 @@ export default function MapView({ layers }) {
       map.on('load', () => {
         mapRef.current = map;
         map.resize();
+
+        // Add official India overlay on initial load
+        addIndiaOverlay(map);
+
         if (syncLayersRef.current) syncLayersRef.current();
       });
     } catch (e) {
@@ -59,35 +256,22 @@ export default function MapView({ layers }) {
       return;
     }
 
-    // ResizeObserver watches the map wrapper container DOM element for any dimension changes
     let resizeObserver = null;
     if (typeof window !== 'undefined' && window.ResizeObserver && mapContainer.current) {
       resizeObserver = new ResizeObserver(() => {
-        if (mapRef.current) {
-          mapRef.current.resize();
-        }
+        if (mapRef.current) mapRef.current.resize();
       });
       resizeObserver.observe(mapContainer.current);
     }
 
-    // Window resize event fallback
     const handleWindowResize = () => {
-      if (mapRef.current) {
-        mapRef.current.resize();
-      }
+      if (mapRef.current) mapRef.current.resize();
     };
     window.addEventListener('resize', handleWindowResize);
 
-    // Initial delayed resizes to guarantee sizing across all viewport resolutions & initial layouts
-    const t1 = setTimeout(() => {
-      if (mapRef.current) mapRef.current.resize();
-    }, 100);
-    const t2 = setTimeout(() => {
-      if (mapRef.current) mapRef.current.resize();
-    }, 400);
-    const t3 = setTimeout(() => {
-      if (mapRef.current) mapRef.current.resize();
-    }, 1000);
+    const t1 = setTimeout(() => { if (mapRef.current) mapRef.current.resize(); }, 100);
+    const t2 = setTimeout(() => { if (mapRef.current) mapRef.current.resize(); }, 400);
+    const t3 = setTimeout(() => { if (mapRef.current) mapRef.current.resize(); }, 1000);
 
     return () => {
       clearTimeout(t1);
@@ -96,17 +280,14 @@ export default function MapView({ layers }) {
       window.removeEventListener('resize', handleWindowResize);
       if (resizeObserver) resizeObserver.disconnect();
       if (map) {
-        try {
-          map.remove();
-        } catch (e) {
-          // Ignore
-        }
+        try { map.remove(); } catch (e) { /* ignore */ }
       }
       mapRef.current = null;
+      indiaLayersAdded.current = false;
     };
-  }, []);
+  }, [addIndiaOverlay]);
 
-  // Sync Layers & Auto-fly to queried region
+  // Sync ORCA data layers & Auto-fly to queried region
   useEffect(() => {
     const map = mapRef.current;
 
@@ -119,7 +300,7 @@ export default function MapView({ layers }) {
 
       const existingSources = style.sources || {};
 
-      // 1. Remove old layers not in props
+      // Remove old ORCA layers not in current props
       Object.keys(existingSources).forEach(sourceId => {
         if (sourceId.startsWith('orca-') && !currentIds.includes(sourceId.replace('orca-', ''))) {
           if (map.getLayer(sourceId)) map.removeLayer(sourceId);
@@ -127,6 +308,7 @@ export default function MapView({ layers }) {
         }
       });
 
+      main
       // --- OFFICIAL BOUNDARY OVERLAY INJECTION ---
       // This ensures the official Indian boundary (including Aksai Chin) is 
       // dynamically rendered over the default OSM de-facto boundaries.
@@ -188,7 +370,8 @@ export default function MapView({ layers }) {
       }
       // --- END OFFICIAL BOUNDARY ---
 
-      // 2. Add or update new layers
+      // 2. Add or update new layer
+      // Add or update ORCA data layers main
       layers.forEach(layer => {
         const sourceId = `orca-${layer.id}`;
         if (!map.getSource(sourceId)) {
@@ -258,16 +441,15 @@ export default function MapView({ layers }) {
             map.getCanvas().style.cursor = '';
           });
         } else {
-          // Update visibility
           map.setLayoutProperty(
-            sourceId, 
-            'visibility', 
+            sourceId,
+            'visibility',
             visibleLayers.has(layer.id) ? 'visible' : 'none'
           );
         }
       });
 
-      // 3. Auto-fit camera to newly returned specific layers (excluding broad static boundaries)
+      // Auto-fit camera to newly returned specific layers
       if (layers.length > 0) {
         let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
         let found = false;
@@ -276,7 +458,7 @@ export default function MapView({ layers }) {
           if (!Array.isArray(coords)) return;
           if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
             const [lng, lat] = coords;
-            if (lng >= 64 && lng <= 96 && lat >= 5 && lat <= 26) {
+            if (lng >= 64 && lng <= 98 && lat >= 4 && lat <= 37) {
               if (lng < minLng) minLng = lng;
               if (lng > maxLng) maxLng = lng;
               if (lat < minLat) minLat = lat;
@@ -288,7 +470,6 @@ export default function MapView({ layers }) {
           }
         };
 
-        // Prefer focused operational layers (PFZ, weather, routes, cyclone) over national boundary envelopes
         const targetLayers = layers.filter(l => !['imbl-layer', 'imbl-route-layer', 'mpa-layer'].includes(l.id));
         const layersToFit = targetLayers.length ? targetLayers : layers;
 
@@ -320,7 +501,7 @@ export default function MapView({ layers }) {
     }
   }, [layers, visibleLayers]);
 
-  // Initial population of visible layers when new layers arrive
+  // Populate visible layers when new layers arrive
   useEffect(() => {
     setVisibleLayers(prev => {
       const next = new Set(prev);
@@ -345,9 +526,11 @@ export default function MapView({ layers }) {
     if (!map || styleKey === activeBasemap) return;
     try {
       setActiveBasemap(styleKey);
+      indiaLayersAdded.current = false;
       map.setStyle(BASEMAP_STYLES[styleKey].url);
       map.once('style.load', () => {
         map.resize();
+        addIndiaOverlay(map);
         if (syncLayersRef.current) syncLayersRef.current();
       });
     } catch (err) {
@@ -358,7 +541,7 @@ export default function MapView({ layers }) {
   return (
     <div className="map-container">
       <div ref={mapContainer} className="map-wrapper" />
-      
+
       {/* Basemap Style Switcher Control */}
       <div className="basemap-selector">
         {Object.entries(BASEMAP_STYLES).map(([key, item]) => (
@@ -375,10 +558,10 @@ export default function MapView({ layers }) {
       </div>
 
       {layers.length > 0 && (
-        <LayerPanel 
-          layers={layers} 
-          visibleLayers={visibleLayers} 
-          onToggleLayer={toggleLayer} 
+        <LayerPanel
+          layers={layers}
+          visibleLayers={visibleLayers}
+          onToggleLayer={toggleLayer}
         />
       )}
     </div>
