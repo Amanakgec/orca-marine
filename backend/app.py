@@ -72,13 +72,10 @@ VOICE_MAP = {
 
 @app.on_event("startup")
 async def startup_event():
- main
     start_scheduler()
-    
-=======
+
     groq_key = os.getenv("GROQ_API_KEY", "")
     google_key = os.getenv("GOOGLE_API_KEY", "")
-main
     mock_mode = os.getenv("MOCK_MODE", "true").lower() == "true"
 
     if groq_key:
