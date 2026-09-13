@@ -301,151 +301,127 @@ export default function MapView({ layers }) {
       const existingSources = style.sources || {};
 
       // Remove old ORCA layers not in current props
-      Object.keys(existingSources).forEach(sourceId => {
-        if (sourceId.startsWith('orca-') && !currentIds.includes(sourceId.replace('orca-', ''))) {
-          if (map.getLayer(sourceId)) map.removeLayer(sourceId);
-          map.removeSource(sourceId);
-        }
-      });
+      try {
+        Object.keys(existingSources).forEach(sourceId => {
+          if (sourceId.startsWith('orca-') && !currentIds.includes(sourceId.replace('orca-', ''))) {
+            if (map.getLayer(sourceId)) map.removeLayer(sourceId);
+            if (map.getSource(sourceId)) map.removeSource(sourceId);
+          }
+        });
+      } catch(e) {
+        console.warn('[ORCA] Layer cleanup error (non-fatal):', e);
+      }
 
-      main
       // --- OFFICIAL BOUNDARY OVERLAY INJECTION ---
-      // This ensures the official Indian boundary (including Aksai Chin) is 
-      // dynamically rendered over the default OSM de-facto boundaries.
-      if (!map.getSource('india-official-boundary')) {
-        map.addSource('india-official-boundary', {
-          type: 'geojson',
-          data: '/data/india_political_boundary.geojson'
-        });
-        
-        map.addLayer({
-          id: 'india-official-fill',
-          type: 'fill',
-          source: 'india-official-boundary',
-          paint: {
-            'fill-color': '#00d4ff',
-            'fill-opacity': 0.03
-          }
-        });
+      // Renders India's official claimed territory (including Aksai Chin) over OSM tiles.
+      try {
+        if (!map.getSource('india-official-boundary')) {
+          map.addSource('india-official-boundary', {
+            type: 'geojson',
+            data: '/data/india_political_boundary.geojson'
+          });
+          map.addLayer({
+            id: 'india-official-fill',
+            type: 'fill',
+            source: 'india-official-boundary',
+            paint: { 'fill-color': '#00d4ff', 'fill-opacity': 0.03 }
+          });
+          map.addLayer({
+            id: 'india-official-line',
+            type: 'line',
+            source: 'india-official-boundary',
+            paint: { 'line-color': '#e74c3c', 'line-width': 2.5, 'line-dasharray': [3, 2] }
+          });
+        }
+      } catch(e) {
+        console.warn('[ORCA] Official boundary overlay failed (non-fatal):', e);
+      }
 
-        map.addLayer({
-          id: 'india-official-line',
-          type: 'line',
-          source: 'india-official-boundary',
-          paint: {
-            'line-color': '#e74c3c', // Distinct red to differentiate from default OSM borders
-            'line-width': 2.5,
-            'line-dasharray': [3, 2] // Dashed visual indicator for the overlay
-          }
-        });
-
-        // Aksai Chin Explicit Label Marker
-        map.addSource('aksai-chin-label', {
-          type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: [{
-              type: 'Feature',
-              geometry: { type: 'Point', coordinates: [79.2, 35.2] },
-              properties: { name: 'Aksai Chin (India)' }
-            }]
-          }
-        });
-        
-        map.addLayer({
-          id: 'aksai-chin-text',
-          type: 'symbol',
-          source: 'aksai-chin-label',
-          layout: {
-            'text-field': ['get', 'name'],
-            'text-size': 13,
-            'text-offset': [0, 1.5]
-          },
-          paint: {
-            'text-color': '#e74c3c',
-            'text-halo-color': '#ffffff',
-            'text-halo-width': 2
-          }
-        });
+      try {
+        if (!map.getSource('aksai-chin-label')) {
+          map.addSource('aksai-chin-label', {
+            type: 'geojson',
+            data: {
+              type: 'FeatureCollection',
+              features: [{
+                type: 'Feature',
+                geometry: { type: 'Point', coordinates: [79.2, 35.2] },
+                properties: { name: 'Aksai Chin (India)' }
+              }]
+            }
+          });
+          map.addLayer({
+            id: 'aksai-chin-text',
+            type: 'symbol',
+            source: 'aksai-chin-label',
+            layout: { 'text-field': ['get', 'name'], 'text-size': 13, 'text-offset': [0, 1.5] },
+            paint: { 'text-color': '#e74c3c', 'text-halo-color': '#ffffff', 'text-halo-width': 2 }
+          });
+        }
+      } catch(e) {
+        console.warn('[ORCA] Aksai Chin label failed (non-fatal):', e);
       }
       // --- END OFFICIAL BOUNDARY ---
 
-      // 2. Add or update new layer
-      // Add or update ORCA data layers main
+      // Add or update ORCA data layers
       layers.forEach(layer => {
-        const sourceId = `orca-${layer.id}`;
-        if (!map.getSource(sourceId)) {
-          map.addSource(sourceId, {
-            type: 'geojson',
-            data: layer.data
-          });
-        } else {
-          map.getSource(sourceId).setData(layer.data);
-        }
-
-        if (!map.getLayer(sourceId)) {
-          const paint = {};
-
-          if (layer.type === 'fill') {
-            paint['fill-color'] = layer.style?.color || '#00d4ff';
-            paint['fill-opacity'] = layer.style?.opacity !== undefined ? layer.style.opacity : 0.5;
-            paint['fill-outline-color'] = '#ffffff';
-          } else if (layer.type === 'line') {
-            paint['line-color'] = layer.style?.color || '#00d4ff';
-            paint['line-width'] = layer.style?.width || 3;
-            paint['line-opacity'] = layer.style?.opacity !== undefined ? layer.style.opacity : 0.9;
-          } else if (layer.type === 'circle') {
-            paint['circle-color'] = layer.style?.color || '#FF6B35';
-            paint['circle-radius'] = layer.style?.width || 6;
-            paint['circle-opacity'] = layer.style?.opacity !== undefined ? layer.style.opacity : 0.85;
-            paint['circle-stroke-width'] = 1.5;
-            paint['circle-stroke-color'] = '#ffffff';
+        try {
+          const sourceId = `orca-${layer.id}`;
+          if (!map.getSource(sourceId)) {
+            map.addSource(sourceId, { type: 'geojson', data: layer.data });
+          } else {
+            map.getSource(sourceId).setData(layer.data);
           }
 
-          map.addLayer({
-            id: sourceId,
-            type: layer.type,
-            source: sourceId,
-            paint: paint,
-            layout: {
-              visibility: visibleLayers.has(layer.id) ? 'visible' : 'none'
+          if (!map.getLayer(sourceId)) {
+            const paint = {};
+            if (layer.type === 'fill') {
+              paint['fill-color'] = layer.style?.color || '#00d4ff';
+              paint['fill-opacity'] = layer.style?.opacity !== undefined ? layer.style.opacity : 0.5;
+              paint['fill-outline-color'] = '#ffffff';
+            } else if (layer.type === 'line') {
+              paint['line-color'] = layer.style?.color || '#00d4ff';
+              paint['line-width'] = layer.style?.width || 3;
+              paint['line-opacity'] = layer.style?.opacity !== undefined ? layer.style.opacity : 0.9;
+            } else if (layer.type === 'circle') {
+              paint['circle-color'] = layer.style?.color || '#FF6B35';
+              paint['circle-radius'] = layer.style?.width || 6;
+              paint['circle-opacity'] = layer.style?.opacity !== undefined ? layer.style.opacity : 0.85;
+              paint['circle-stroke-width'] = 1.5;
+              paint['circle-stroke-color'] = '#ffffff';
             }
-          });
 
-          // Interactive popup
-          map.on('click', sourceId, (e) => {
-            if (!e.features || !e.features.length) return;
-            const coordinates = e.lngLat;
-            const properties = e.features[0].properties;
+            map.addLayer({
+              id: sourceId,
+              type: layer.type,
+              source: sourceId,
+              paint: paint,
+              layout: { visibility: visibleLayers.has(layer.id) ? 'visible' : 'none' }
+            });
 
-            let html = '<div style="font-size:12.5px; font-family: sans-serif; line-height:1.5;">';
-            html += '<div style="font-weight: bold; margin-bottom: 6px; color: #00d4ff; border-bottom: 1px solid #334155; padding-bottom: 3px;">📍 ' + (layer.label || 'Feature Details') + '</div>';
-            for (const [key, value] of Object.entries(properties)) {
-              if (key !== 'coordinates' && key !== 'geometry') {
-                const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                html += `<div><strong style="color:#94a3b8">${formattedKey}:</strong> ${value}</div>`;
+            map.on('click', sourceId, (e) => {
+              if (!e.features || !e.features.length) return;
+              const coordinates = e.lngLat;
+              const properties = e.features[0].properties;
+              let html = '<div style="font-size:12.5px; font-family: sans-serif; line-height:1.5;">';
+              html += '<div style="font-weight: bold; margin-bottom: 6px; color: #00d4ff; border-bottom: 1px solid #334155; padding-bottom: 3px;">📍 ' + (layer.label || 'Feature Details') + '</div>';
+              for (const [key, value] of Object.entries(properties)) {
+                if (key !== 'coordinates' && key !== 'geometry') {
+                  const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                  html += `<div><strong style="color:#94a3b8">${formattedKey}:</strong> ${value}</div>`;
+                }
               }
-            }
-            html += '</div>';
-
-            new maplibregl.Popup({ closeButton: true, maxWidth: '320px' })
-              .setLngLat(coordinates)
-              .setHTML(html)
-              .addTo(map);
-          });
-
-          map.on('mouseenter', sourceId, () => {
-            map.getCanvas().style.cursor = 'pointer';
-          });
-          map.on('mouseleave', sourceId, () => {
-            map.getCanvas().style.cursor = '';
-          });
-        } else {
-          map.setLayoutProperty(
-            sourceId,
-            'visibility',
-            visibleLayers.has(layer.id) ? 'visible' : 'none'
-          );
+              html += '</div>';
+              new maplibregl.Popup({ closeButton: true, maxWidth: '320px' })
+                .setLngLat(coordinates).setHTML(html).addTo(map);
+            });
+            map.on('mouseenter', sourceId, () => { map.getCanvas().style.cursor = 'pointer'; });
+            map.on('mouseleave', sourceId, () => { map.getCanvas().style.cursor = ''; });
+          } else {
+            map.setLayoutProperty(sourceId, 'visibility', visibleLayers.has(layer.id) ? 'visible' : 'none');
+          }
+        } catch(e) {
+          console.warn(`[ORCA] Failed to render layer "${layer.id}" (non-fatal):`, e);
         }
       });
 
